@@ -5,6 +5,8 @@ NAME		=	webserv
 
 SRC_PATH	=	srcs/
 SRC			=	main.cpp \
+				classes/Webserv.cpp \
+				parsing/myStringTrim.cpp
 
 OBJ_PATH	=	objs/
 OBJS		=	$(addprefix $(OBJ_PATH), $(SRC:.cpp=.o))
