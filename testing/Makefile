@@ -5,8 +5,7 @@ NAME		=	a.out
 
 SRC_PATH	=	srcs/
 SRC			=	main.cpp \
-				tcpclient.cpp \
-				tcpserver.cpp
+				Server.cpp
 
 OBJ_PATH	=	objs/
 OBJS		=	$(addprefix $(OBJ_PATH), $(SRC:.cpp=.o))

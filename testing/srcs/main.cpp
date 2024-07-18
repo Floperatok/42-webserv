@@ -1,5 +1,6 @@
 
 #include "webserv.hpp"
+#include "Server.hpp"
 
 int main(int ac, char **av)
 {
@@ -10,7 +11,15 @@ int main(int ac, char **av)
 	// }
 	(void)ac;
 	(void)av;
-	// client(av[1]);
-	server();
+	Server server(16003);
+	try
+	{
+		server.setup();
+		server.start();
+	}
+	catch(const std::exception& e)
+	{
+		std::cerr << e.what() << '\n';
+	}
 	return (0);
 }
