@@ -1,3 +1,4 @@
 webserv
 objs
 *.vscode
+*a.out

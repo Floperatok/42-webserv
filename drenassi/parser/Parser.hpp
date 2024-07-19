@@ -1,6 +1,8 @@
 #pragma once
 
 #include <iostream>
+#include <fstream>
+#include <exception>
 
 class Parser
 {
@@ -12,7 +14,14 @@ class Parser
 		// Getters and setters
 
 		// Methods
-		bool CheckConfigFile(const std::string &configPath);
+		void CheckConfigFile();
+
+		// Exceptions
+		class FileNotOpenedException : public std::exception
+		{
+			public :
+				virtual const char	*what() const throw();
+		};
 
 	private:
 		// Attributes
