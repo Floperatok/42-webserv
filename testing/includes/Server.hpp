@@ -27,7 +27,7 @@ public:
 	~Server(void);
 
 	void	setup(void);
-	void	start(void);
+	void	run(void);
 
 	class CannotCreateSocket : public std::exception
 	{

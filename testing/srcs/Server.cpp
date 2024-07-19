@@ -58,7 +58,7 @@ void	Server::setup(void)
 		throw (CannotBindSocket(_serverport, errno));
 }
 
-void	Server::start(void)
+void	Server::run(void)
 {
 	if ((listen(_sockfd, 10)) < 0)
 		throw (CannotListenSocket(errno));
