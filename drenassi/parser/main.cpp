@@ -1,4 +1,5 @@
-#include "Parser.hpp"
+#include "CheckConfig.hpp"
+#include <cstdlib>
 
 int main(int ac, char **av)
 {
@@ -7,8 +8,15 @@ int main(int ac, char **av)
 		std::cout << "Error: Need 1 argument" << std::endl;
 		return (1);
 	}
-	Parser *parser = new Parser(av[1]);
 
-
-	delete parser;
+	try
+	{
+		CheckConfig::CheckConfigFile(av[1]);
+	}
+	catch(const std::exception &e)
+	{
+		std::cerr << e.what() << '\n';
+	}
+	
+	return (EXIT_SUCCESS);
 }
