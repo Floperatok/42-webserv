@@ -52,6 +52,8 @@ void	Server::setup(void)
 	_servaddr.sin_family = AF_INET;
 	_servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	_servaddr.sin_port = htons(_serverport);
+	int option_value = 1;
+    setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR, &option_value, sizeof(int));
 	if ((bind(_sockfd, (struct sockaddr *) &_servaddr, sizeof(_servaddr))) < 0)
 		throw (CannotBindSocket(_serverport, errno));
 }
