@@ -7,7 +7,7 @@
 Server::Server(void)
 {
 	_sockfd = -1;
-	_serverport = -1;
+	_port = -1;
 	std::memset(&_servaddr, 0, sizeof(_servaddr));
 }
 
@@ -73,72 +73,28 @@ void	Server::_setupServAddr(void)
 
 void	Server::setup(void)
 {
+	Logger::debug("Creating socket");
 	if ((_sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-		throw (CannotCreateSocket(errno));
+		throw (Logger::FunctionError("socket", errno));
 	
 	_setupServAddr();
 	
 	int option_value = 1;
     setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &option_value, sizeof(int));
 	
+	std::ostringstream oss;
+	oss << "Binding socket at port " << _port;
+	Logger::debug(oss.str().c_str());
 	if ((bind(_sockfd, (struct sockaddr *) &_servaddr, sizeof(_servaddr))) < 0)
-		throw (CannotBindSocket(_port, errno));
+		throw (Logger::FunctionError("bind", errno));
+	
+	Logger::debug("Listen for connections");
 	if ((listen(_sockfd, 512)) < 0)
-		throw (CannotListenSocket(errno));
+		throw (Logger::FunctionError("listen", errno));
 }
 
 
 /* ########## Exception ########## */
-
-Server::CannotCreateSocket::CannotCreateSocket(const int errnum)
-{
-	std::ostringstream oss;
-
-	oss << "Cannot create socket: " << strerror(errnum);
-	_message = oss.str();
-}
-Server::CannotCreateSocket::~CannotCreateSocket(void) throw()
-{
-}
-const char *Server::CannotCreateSocket::what(void) const throw()
-{
-	return (_message.c_str());
-}
-
-Server::CannotBindSocket::CannotBindSocket(const unsigned int port, const int errnum)
-{
-	std::ostringstream oss;
-
-	oss << "Cannot bind socket at port " << port << ": " << strerror(errnum);
-	_message = oss.str();
-}
-Server::CannotBindSocket::~CannotBindSocket(void) throw()
-{
-}
-const char *Server::CannotBindSocket::what(void) const throw()
-{
-	return (_message.c_str());
-}
-
-Server::CannotListenSocket::CannotListenSocket(const int errnum)
-{
-	std::ostringstream oss;
-
-	oss << "Cannot listen socket: " << strerror(errnum);
-	_message = oss.str();
-}
-Server::CannotListenSocket::~CannotListenSocket(void) throw()
-{
-}
-const char *Server::CannotListenSocket::what(void) const throw()
-{
-	return (_message.c_str());
-}
-
-const char *Server::ReadError::what(void) const throw()
-{
-	return ("Read error"); // devellop more
-}
 
 
 /* ########## Non-member function ########## */

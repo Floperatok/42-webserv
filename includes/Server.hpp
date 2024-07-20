@@ -2,6 +2,8 @@
 #ifndef SERVER_HPP
 # define SERVER_HPP
 
+# include "Logger.hpp"
+
 # include <sys/socket.h>
 # include <unistd.h>
 # include <arpa/inet.h>
@@ -35,39 +37,6 @@ public:
 	void		setPort(const int port);
 
 	void	setup(void);
-
-	class CannotCreateSocket : public std::exception
-	{
-	private:
-		std::string			_message;
-	public:
-		CannotCreateSocket(const int errnum);
-		virtual ~CannotCreateSocket(void) throw();
-		virtual const char	*what(void) const throw();
-	};
-	class CannotBindSocket : public std::exception
-	{
-	private:
-		std::string			_message;
-	public:
-		CannotBindSocket(const unsigned int port, const int errnum);
-		virtual ~CannotBindSocket(void) throw();
-		const char *what(void) const throw();
-	};
-	class CannotListenSocket : public std::exception
-	{
-	private:
-		std::string			_message;
-	public:
-		CannotListenSocket(const int errnum);
-		virtual ~CannotListenSocket(void) throw();
-		const char *what(void) const throw();
-	};
-	class ReadError : public std::exception
-	{
-	public:
-		virtual const char *what(void) const throw();
-	};
 };
 
 #endif

@@ -4,12 +4,14 @@
 
 # include "Server.hpp"
 # include "Response.hpp"
+# include "Logger.hpp"
 
 # include <iostream>
 # include <vector>
 
 # include <sys/poll.h>
 
+# define BUFFER_SIZE 4096
 # define MAX_CLIENT 1024
 # define TIMEOUT	10000
 
@@ -23,7 +25,8 @@ private:
 	void	_initFds(void);
 	void 	_storeFd(int fd, const short events);
 	void	_tooManyClients(struct pollfd &fd);
-	int		_createClientSocket(const Server &server);
+	int		_createClientSocket(Server &server);
+	int		_readSocket(const int sockfd);
 public:
 	Master(std::vector<Server> &servers);
 	Master(const Master &copy);
@@ -33,16 +36,6 @@ public:
 
 	void	setupServers(void);
 	void	runServers(void);
-
-	class FunctionError : public std::exception
-	{
-	private:
-		std::string			_message;
-	public:
-		FunctionError(const char *funcName, const int errnum);
-		virtual ~FunctionError(void) throw();
-		virtual const char	*what(void) const throw();
-	};
 };
 
 #endif

@@ -2,6 +2,8 @@
 #ifndef RESPONSE_HPP
 # define RESPONSE_HPP
 
+# include "Logger.hpp"
+
 # include <sstream>
 
 # include <unistd.h>
