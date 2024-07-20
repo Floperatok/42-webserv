@@ -36,47 +36,39 @@ Logger &Logger::operator=(const Logger &other)
 
 /* ########## Member function ########## */
 
-const char *Logger::_colorCode(const int color)
-{
-	std::ostringstream oss;
-
-	oss << "\033[" << color << "m";
-	return (oss.str().c_str());
-}
-
-void	Logger::debug(const char *msg, int tagColor = RESET, int textColor = RESET)
+void	Logger::debug(const char *msg, int tagColor, int textColor)
 {
 	if (VERBOSE)
 	{
-		std::cout 	<< _colorCode(tagColor) << "DEBUG" 
-					<< _colorCode(RESET) << " | "
-					<< _colorCode(textColor) << msg
-					<< _colorCode(RESET) << std::endl;
+		std::cout 	<< "\033[" << tagColor << ";1m" << "debug\t" 
+					<< " | "
+					<< "\033[" << textColor << "m" << msg
+					<< "\033[" << RESET << "m" << std::endl;
 	}
 }
 
-void	Logger::info(const char *msg, int tagColor = CYAN, int textColor = RESET)
+void	Logger::info(const char *msg, int tagColor, int textColor)
 {
-	std::cout 	<< _colorCode(tagColor) << "INFO" 
-				<< _colorCode(RESET) << " | "
-				<< _colorCode(textColor) << msg
-				<< _colorCode(RESET) << std::endl;
+	std::cout 	<< "\033[" << tagColor << ";1m" << "info\t" 
+				<< " | "
+				<< "\033[" << textColor << "m" << msg
+				<< "\033[" << RESET << "m" << std::endl;
 }
 
-void	Logger::warning(const char *msg, int tagColor = YELLOW, int textColor = RESET)
+void	Logger::warning(const char *msg, int tagColor, int textColor)
 {
-	std::cout 	<< _colorCode(tagColor) << "WARNING" 
-				<< _colorCode(RESET) << " | "
-				<< _colorCode(textColor) << msg
-				<< _colorCode(RESET) << std::endl;
+	std::cout 	<< "\033[" << tagColor << ";1m" << "warning\t" 
+				<< " | "
+				<< "\033[" << textColor << "m" << msg
+				<< "\033[" << RESET << "m" << std::endl;
 }
 
-void	Logger::error(const char *msg, int tagColor = RED, int textColor = RESET)
+void	Logger::error(const char *msg, int tagColor, int textColor)
 {
-	std::cout 	<< _colorCode(tagColor) << "ERROR" 
-				<< _colorCode(RESET) << " | "
-				<< _colorCode(textColor) << msg
-				<< _colorCode(RESET) << std::endl;
+	std::cout 	<< "\033[" << tagColor << ";1m" << "error\t" 
+				<< " | "
+				<< "\033[" << textColor << "m" << msg
+				<< "\033[" << RESET << "m" << std::endl;
 }
 
 

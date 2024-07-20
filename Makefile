@@ -7,7 +7,8 @@ SRC_PATH	=	srcs/
 SRC			=	main.cpp \
 				Master.cpp \
 				Server.cpp \
-				Response.cpp
+				Response.cpp \
+				Logger.cpp
 
 OBJ_PATH	=	objs/
 OBJS		=	$(addprefix $(OBJ_PATH), $(SRC:.cpp=.o))
