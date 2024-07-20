@@ -63,49 +63,28 @@ void	Server::setPort(const int port)
 
 /* ########## Member function ########## */
 
-void	Server::setup(void)
+void	Server::_setupServAddr(void)
 {
-	if ((_sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-		throw (CannotCreateSocket(errno));
 	std::memset(&_servaddr, 0, sizeof(_servaddr));
 	_servaddr.sin_family = AF_INET;
 	_servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	_servaddr.sin_port = htons(_port);
+}
+
+void	Server::setup(void)
+{
+	if ((_sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+		throw (CannotCreateSocket(errno));
+	
+	_setupServAddr();
+	
 	int option_value = 1;
-    setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR, &option_value, sizeof(int));
+    setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &option_value, sizeof(int));
+	
 	if ((bind(_sockfd, (struct sockaddr *) &_servaddr, sizeof(_servaddr))) < 0)
 		throw (CannotBindSocket(_port, errno));
-}
-
-void	Server::listenSock(void)
-{
 	if ((listen(_sockfd, 512)) < 0)
 		throw (CannotListenSocket(errno));
-}
-
-void	Server::run(void)
-{
-	std::cout << "waiting for a connection on port " << _port << std::endl;;
-	int connfd = accept(_sockfd, (struct sockaddr *) 0, 0);
-	char recvline[_BUFFSIZE];
-	std::memset(recvline, 0, _BUFFSIZE);
-	int n;
-	while ((n = read(connfd, recvline, _BUFFSIZE - 1)) > 0)
-	{
-		std::cout << recvline;
-		if (recvline[n - 1] == '\n' && 
-			recvline[n - 2] == '\r' &&
-			recvline[n - 3] == '\n' &&
-			recvline[n - 4] == '\r')
-			break ;
-		std::memset(recvline, 0, _BUFFSIZE);
-	}
-	std::cout << std::endl;
-	if (n < 0)
-		throw (ReadError());
-	std::string response("HTTP/1.0 200 OK\r\n\r\nHello");
-	write(connfd, response.c_str(), response.length());
-	close(connfd);
 }
 
 

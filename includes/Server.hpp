@@ -20,6 +20,8 @@ private:
 	int					_port;
 	int					_sockfd;
 	struct sockaddr_in	_servaddr;
+	
+	void	_setupServAddr(void);
 public:
 	Server(void);
 	Server(const Server &copy);
@@ -33,8 +35,6 @@ public:
 	void		setPort(const int port);
 
 	void	setup(void);
-	void	listenSock(void);
-	void	run(void);
 
 	class CannotCreateSocket : public std::exception
 	{

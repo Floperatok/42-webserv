@@ -5,7 +5,7 @@
 /* ########## Constructor ########## */
 
 Master::Master(std::vector<Server> &servers)
-	:	_servers(servers)
+	:	_servers(servers), _nbSocket(servers.size())
 {
 }
 
@@ -37,6 +37,60 @@ Master &Master::operator=(const Master &other)
 
 /* ########## Member function ########## */
 
+void	Master::_initFds(void)
+{
+	for (int i = 0; i < MAX_CLIENT; i++)
+	{
+		if (i < _servers.size() - 1)
+		{
+			_fds[i].fd = _servers[i].getPort();
+			_fds[i].events = POLLIN | POLLOUT;
+		}
+		else
+			_fds[i].fd = -1;
+	}
+}
+
+
+
+/*
+ *	Stores fd in the array struct pollfd _fds.
+ *	Send a "Service Unavailable" response and close the connection
+ *		if no client slot are available.
+*/
+void Master::_storeFd(int fd, const short events)
+{
+	if (fd < 0)
+		return ;
+	int i = 0;
+	while (i < MAX_CLIENT && _fds[i].fd != -1)
+		i++;
+	if (i == MAX_CLIENT)
+	{
+		Response::serviceUnavailable(fd);
+		close(fd);
+	}
+	_fds[i].fd = fd;
+	_fds[i].events = events;
+}
+
+/*
+ *	Creates new client socket and stores it in the array struct pollfd _fds.
+ *	Returns -1 in case of error.
+*/
+int	Master::_createClientSocket(const Server &server)
+{
+	int	clientSocket;
+	if ((clientSocket = accept(server.getPort(), 
+		(struct sockaddr *)&server.getServaddr(), 
+		(socklen_t *)sizeof(server.getServaddr()))) < 0)
+	{
+		return (-1);
+	}
+	_storeFd(clientSocket, POLLIN | POLLOUT);
+	return (0);
+}
+
 void	Master::setupServers(void)
 {
 	std::vector<Server>::iterator	it = _servers.begin();
@@ -53,37 +107,22 @@ void	Master::runServers(void)
 	int	newSocket;
 	std::vector<Server>::iterator	it = _servers.begin();
 	std::vector<Server>::iterator	ite = _servers.end();
-	struct pollfd	fds[_servers.size()];
 	int				i = 0;
 
-	for ( ; it != ite; it++)
-	{
-		it->listenSock();
-		fds[i].fd = it->getPort();
-		fds[i].events = POLLIN | POLLOUT;
-		i++;
-	}
+	_initFds();
 	while (1)
 	{
-		if (poll(fds, _servers.size(), -1) < 0)
+		if (poll(_fds, MAX_CLIENT, TIMEOUT) < 0)
 			throw (FunctionError("poll", errno));
-		for (int i = 0; i < _servers.size(); i++)
+		for (int i = 0; i < _nbSocket; i++)
 		{
-			if (fds[i].revents & POLLIN || fds[i].revents & POLLOUT)
+			if (_fds[i].revents & POLLIN)
 			{
-				if ((newSocket = accept(_servers[i].getSockfd(), 
-								(struct sockaddr *)&_servers[i].getServaddr(), 
-								(socklen_t*)sizeof(_servers[i].getServaddr()))) < 0)
+				if (_createClientSocket(_servers[i]) < 0)
 				{
-					std::cerr << "accept: " << strerror(errno) << std::endl;
+					std::cerr << "Function accept failed with error: " << strerror(errno) << std::endl;
 					continue ;
 				}
-
-				std::cout	<< "New connection, socketfd: " << newSocket
-							<< ", ip: " << inet_ntoa(_servers[i].getServaddr().sin_addr)
-							<< ", port: " << ntohs(_servers[i].getServaddr().sin_port)
-							<< std::endl;
-							
 			}
 		}
 	}
