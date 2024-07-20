@@ -18,8 +18,6 @@ class CheckConfig
 
 		// Methods
 		static void CheckConfigFile(const std::string &path);
-		static std::vector<std::string> SplitServerContents(std::string &content);
-		static std::vector<std::string> SplitStr(std::string &str, const char *charset);
 
 		// Exceptions
 		class FileNotOpenedException : public std::exception
@@ -48,6 +46,15 @@ class CheckConfig
 				MissingParameterException(std::string message) throw();
 				virtual const char	*what() const throw();
 				virtual ~MissingParameterException() throw() {}
+			private:
+				std::string _msg;
+		};
+		class WrongParameterException : public std::exception
+		{
+			public:
+				WrongParameterException(std::string message) throw();
+				virtual const char	*what() const throw();
+				virtual ~WrongParameterException() throw() {}
 			private:
 				std::string _msg;
 		};

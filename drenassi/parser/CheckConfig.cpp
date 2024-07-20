@@ -145,7 +145,7 @@ bool CheckConfig::CheckServerKeywords(std::string &content)
 */
 bool CheckConfig::CheckKeywords(std::string &content)
 {
-	std::vector<std::string>	serversContent = SplitServerContents(content);
+	std::vector<std::string>	serversContent = Parser::SplitServerContents(content);
 	std::string					serverContent;
 	std::vector<std::string>	parameters;
 
@@ -160,79 +160,44 @@ bool CheckConfig::CheckKeywords(std::string &content)
 			throw (MissingParameterException("No location in config file. Need at least one."));
 
 		
-		parameters = SplitStr(serverContent, ";{}");
+		parameters = Parser::SplitStr(serverContent, ";{}");
 		size_t i = 0;
 		for (std::vector<std::string>::iterator it = parameters.begin() ; it != parameters.end() ; it++)
 		{
-			std::cout << i++ << ": " << *it << std::endl;
+			std::string	parameter = *it;
+			Parser::TrimStr(parameter, " ");
+			std::cout << i++ << ": '" << parameter << "'" << std::endl;
+
+			if (parameter.find("listen") != std::string::npos)
+			{
+				if (parameter[6] != ' ')
+					throw (WrongParameterException("Invalid port '" + parameter + "'."));
+				parameter.erase(0, 7);
+				if (parameter.find_first_not_of("0123456789") != std::string::npos)
+					throw (WrongParameterException("Invalid port '" + parameter + "'."));
+			}
+			else if (parameter.find("server_name") != std::string::npos)
+			{
+				if (parameter[11] != ' ')
+					throw (WrongParameterException("Invalid server name '" + parameter + "'."));
+				parameter.erase(0, 12);
+				if (parameter.find(' ') != std::string::npos)
+					throw (WrongParameterException("Invalid server name '" + parameter + "'."));
+			}
+			else if (parameter.find("host") != std::string::npos)
+			{
+				if (parameter[4] != ' ')
+					throw (WrongParameterException("Invalid host '" + parameter + "'."));
+				parameter.erase(0, 5);
+				if (parameter.find(' ') != std::string::npos || Parser::SplitStr(parameter, ".").size() != 4)
+					throw (WrongParameterException("Invalid host '" + parameter + "'."));
+			}
 		}
 		std::cout << std::endl;
 		serversContent.pop_back();
 	}
 
 	return (true);
-}
-
-/*
- *	@brief Separates the config file content according to servers.
- *	@param content The string content from the config file.
- *	@return A strings vector containing splited servers contents.
-*/
-std::vector<std::string> CheckConfig::SplitServerContents(std::string &content)
-{
-	std::vector<std::string>	serversContent;
-	std::vector<size_t>			start;
-	std::vector<size_t>			end;
-
-	Parser::RemoveComments(content);
-	Parser::RemoveWhiteSpaces(content);
-
-	for (size_t i = 0 ; i < content.length() ; i++)
-	{
-		if (!content.compare(i, 7, "server ") || !content.compare(i, 7, "server{")
-			|| !content.compare(i, 7, "server\t"))
-			start.push_back(content.find('{', i) + 1);
-		if (i > 0 && !content.compare(i, 7, "server ") || !content.compare(i, 7, "server{")
-			|| !content.compare(i, 7, "server\t") || content[i + 1] == '\0')
-			end.push_back(content.find_last_of('}', i) - 1);
-	}
-	
-	while (start.size() > 0)
-	{
-		serversContent.push_back(content.substr(start.back(), end.back() - start.back()));
-		start.pop_back();
-		end.pop_back();
-	}
-
-	return (serversContent);
-}
-
-
-/*
- *	@brief Split a string into substrings delimited by a character.
- *	@param str The string to split.
- *	@param c The delimiting character.
- *	@return The splited string.
-*/
-std::vector<std::string> CheckConfig::SplitStr(std::string &str, const char *charset)
-{
-	std::vector<std::string>	splited;
-	std::string					set = charset;
-
-	for (size_t i = 0 ; i < str.length() ; i++)
-	{
-		size_t start = i;
-
-		while (str[i] && set.find(str[i]) == std::string::npos)
-			i++;
-		
-		splited.push_back(str.substr(start, i - start));
-
-		while (set.find(str[i]) != std::string::npos)
-			i++;
-	}
-
-	return (splited);
 }
 
 
@@ -259,10 +224,20 @@ const char	*CheckConfig::WrongKeywordException::what() const throw()
 
 CheckConfig::MissingParameterException::MissingParameterException(std::string message) throw()
 {
-	_msg = "webserv:Error: " + message;
+	_msg = "webserv: Error: " + message;
 }
 
 const char *CheckConfig::MissingParameterException::what() const throw()
+{
+	return (_msg.c_str());
+}
+
+CheckConfig::WrongParameterException::WrongParameterException(std::string message) throw()
+{
+	_msg = "webserv: Error: " + message;
+}
+
+const char *CheckConfig::WrongParameterException::what() const throw()
 {
 	return (_msg.c_str());
 }
