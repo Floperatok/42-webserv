@@ -16,6 +16,8 @@ enum	Color {
 	RESET	= 0
 };
 
+# include "string.h"
+
 # include <iostream>
 # include <sstream>
 
@@ -33,6 +35,16 @@ public:
 	static void	info(const char *msg, int tagColor = CYAN, int textColor = RESET);
 	static void	warning(const char *msg, int tagColor = YELLOW, int textColor = RESET);
 	static void	error(const char *msg, int tagColor = RED, int textColor = RESET);
+
+	class FunctionError : public std::exception
+	{
+	private:
+		std::string			_message;
+	public:
+		FunctionError(const char *funcName, const int errnum);
+		virtual ~FunctionError(void) throw();
+		virtual const char	*what(void) const throw();
+	};
 };
 
 #endif

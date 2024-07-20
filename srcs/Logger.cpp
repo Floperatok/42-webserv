@@ -74,6 +74,24 @@ void	Logger::error(const char *msg, int tagColor, int textColor)
 
 /* ########## Exception ########## */
 
+Logger::FunctionError::FunctionError(const char *funcName, const int errnum)
+{
+	std::ostringstream oss;
+
+	if (errnum < 0)
+		oss << "Function " << funcName << " failed";
+	else
+		oss << "Function " << funcName << " failed with error: " << strerror(errnum);
+	_message = oss.str();
+}
+Logger::FunctionError::~FunctionError(void) throw()
+{
+}
+const char *Logger::FunctionError::what(void) const throw()
+{
+	return (_message.c_str());
+}
+
 
 /* ########## Non-member function ########## */
 
