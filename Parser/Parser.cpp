@@ -8,11 +8,14 @@ Parser::Parser()
 
 Parser::Parser(const Parser &toCopy)
 {
-
+	if (this != &toCopy)
+		*this = toCopy;
 }
 
 Parser &Parser::operator=(const Parser &rhs)
 {
+	if (this != &rhs)
+		*this = rhs;
 	return (*this);
 }
 
@@ -88,7 +91,7 @@ std::vector<std::string> Parser::SplitStr(std::string &str, const char *charset)
 		
 		splited.push_back(str.substr(start, i - start));
 
-		while (set.find(str[i]) != std::string::npos)
+		while (set.find(str[i]) != std::string::npos && set.find(str[i + 1]) != std::string::npos)
 			i++;
 	}
 
@@ -114,7 +117,7 @@ void Parser::TrimStr(std::string &str, const char *charset)
 
 	size_t		len = str.length() - 1;
 	i = len;
-	while (i >= 0 && set.find_last_of(str[i]) != std::string::npos)
+	while (set.find_last_of(str[i]) != std::string::npos)
 		i--;
 	str.erase(i + 1, len - i);
 }
@@ -138,7 +141,7 @@ std::vector<std::string> Parser::SplitServerContents(std::string &content)
 		if (!content.compare(i, 7, "server ") || !content.compare(i, 7, "server{")
 			|| !content.compare(i, 7, "server\t"))
 			start.push_back(content.find('{', i) + 1);
-		if (i > 0 && !content.compare(i, 7, "server ") || !content.compare(i, 7, "server{")
+		if (!content.compare(i, 7, "server ") || !content.compare(i, 7, "server{")
 			|| !content.compare(i, 7, "server\t") || content[i + 1] == '\0')
 			end.push_back(content.find_last_of('}', i) - 1);
 	}
@@ -153,3 +156,73 @@ std::vector<std::string> Parser::SplitServerContents(std::string &content)
 	return (serversContent);
 }
 
+/*
+ *	@brief Parse config file and replace matching attributes in master class.
+ *	@param configPath Path of the config file.
+ *	@param master The object from Master class to modify.
+*/
+void	Parser::ParseConfigFile(const std::string &configPath, Master &master)
+{
+	std::ifstream	file;
+	std::string		line;
+	std::string		content = "";
+
+	file.open(configPath.c_str());
+	if (!file.is_open())
+		throw (CheckConfig::FileNotOpenedException());
+	
+	while (std::getline(file, line))
+		content += line + '\n';
+	(void) master;
+
+	std::vector<std::string>	serversContent = Parser::SplitServerContents(content);
+	std::vector<Server>			servers;
+
+	while (serversContent.size() > 0)
+	{
+		std::vector<std::string>	parameters = Parser::SplitStr(serversContent.back(), ";{}");
+		Server	server;
+
+
+		/************************************ DEBUG ************************************/
+		size_t i = 0;
+		/************************************ DEBUG ************************************/
+
+		for (std::vector<std::string>::iterator it = parameters.begin() ; it != parameters.end() ; it++)
+		{
+			std::string	parameter = *it;
+			Parser::TrimStr(parameter, " ");
+
+			/************************************ DEBUG ************************************/
+			std::cout << i++ << ": '" << parameter << "'" << std::endl;
+			/************************************ DEBUG ************************************/
+
+			if (parameter.find("listen") != std::string::npos)
+			{
+				parameter.erase(0, 7);
+				server.setPort(Utils::strToint(parameter));
+			}
+			else if (parameter.find("server_name") != std::string::npos)
+			{
+				parameter.erase(0, 12);
+
+			}
+			else if (parameter.find("host") != std::string::npos)
+			{
+				parameter.erase(0, 5);
+				
+			}
+
+		}
+
+		/************************************ DEBUG ************************************/
+		std::cout << std::endl;
+		/************************************ DEBUG ************************************/
+
+		servers.push_back(server);
+		serversContent.pop_back();
+	}
+	
+	master.setServers(servers);
+
+}

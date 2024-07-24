@@ -1,11 +1,7 @@
 #pragma once
 
-#include <iostream>
-#include <fstream>
-#include <exception>
-#include <vector>
-#include <stack>
-#include <cctype>
+#include "Libs.hpp"
+#include "Logger.hpp"
 #include "Parser.hpp"
 
 class Parser;
@@ -69,5 +65,5 @@ class CheckConfig
 		static bool CheckBrackets(std::string &content);
 		static bool IsInsideBrackets(std::string &content, size_t index);
 		static bool CheckServerKeywords(std::string &content);
-		static bool CheckKeywords(std::string &content);
+		static void CheckKeywords(std::string &content);
 };

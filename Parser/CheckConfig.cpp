@@ -31,7 +31,7 @@ void CheckConfig::CheckConfigFile(const std::string &path)
 	std::string		line;
 	std::string		content = "";
 
-	file.open(path);
+	file.open(path.c_str());
 	if (!file.is_open())
 		throw (FileNotOpenedException());
 
@@ -143,7 +143,7 @@ bool CheckConfig::CheckServerKeywords(std::string &content)
  *	@param content The string content to check.
  *	@return TRUE if the content is valid, FALSE if not.
 */
-bool CheckConfig::CheckKeywords(std::string &content)
+void CheckConfig::CheckKeywords(std::string &content)
 {
 	std::vector<std::string>	serversContent = Parser::SplitServerContents(content);
 	std::string					serverContent;
@@ -153,20 +153,27 @@ bool CheckConfig::CheckKeywords(std::string &content)
 	{
 		serverContent = serversContent.back();
 		if (serverContent.find("listen") == std::string::npos)
-			throw (MissingParameterException("Port not found in config file."));
+			throw (MissingParameterException("Port not found."));
 		if (serverContent.find("host") == std::string::npos)
-			throw (MissingParameterException("Host not found in config file."));
+			throw (MissingParameterException("Host not found."));
 		if (serverContent.find("location") == std::string::npos)
-			throw (MissingParameterException("No location in config file. Need at least one."));
+			throw (MissingParameterException("No location found."));
 
 		
 		parameters = Parser::SplitStr(serverContent, ";{}");
-		size_t i = 0;
+
+		/************************************ DEBUG ************************************/
+		// size_t i = 0;
+		/************************************ DEBUG ************************************/
+
 		for (std::vector<std::string>::iterator it = parameters.begin() ; it != parameters.end() ; it++)
 		{
 			std::string	parameter = *it;
 			Parser::TrimStr(parameter, " ");
-			std::cout << i++ << ": '" << parameter << "'" << std::endl;
+
+			/************************************ DEBUG ************************************/
+			// std::cout << i++ << ": '" << parameter << "'" << std::endl;
+			/************************************ DEBUG ************************************/
 
 			if (parameter.find("listen") != std::string::npos)
 			{
@@ -193,38 +200,40 @@ bool CheckConfig::CheckKeywords(std::string &content)
 					throw (WrongParameterException("Invalid host '" + parameter + "'."));
 			}
 		}
-		std::cout << std::endl;
+
+		/************************************ DEBUG ************************************/
+		// std::cout << std::endl;
+		/************************************ DEBUG ************************************/
+		
 		serversContent.pop_back();
 	}
-
-	return (true);
 }
 
 
 /* ########## Exceptions ########## */
 const char	*CheckConfig::FileNotOpenedException::what() const throw()
 {
-	return ("webserv: Error: Can't open config file.");
+	return ("Config file: Cannot open file.");
 }
 
 const char	*CheckConfig::UnclosedBracketsException::what() const throw()
 {
-	return ("webserv: Error: Unclosed brackets in config file.");
+	return ("Config file: Found unclosed brackets.");
 }
 
 const char	*CheckConfig::EmptyFileException::what() const throw()
 {
-	return ("webserv: Error: Empty config file.");
+	return ("Config file: Empty file.");
 }
 
 const char	*CheckConfig::WrongKeywordException::what() const throw()
 {
-	return ("webserv: Error: Wrong keyword before brackets.");
+	return ("Config file: Wrong keyword before brackets.");
 }
 
 CheckConfig::MissingParameterException::MissingParameterException(std::string message) throw()
 {
-	_msg = "webserv: Error: " + message;
+	_msg = "Config file: " + message;
 }
 
 const char *CheckConfig::MissingParameterException::what() const throw()
@@ -234,7 +243,7 @@ const char *CheckConfig::MissingParameterException::what() const throw()
 
 CheckConfig::WrongParameterException::WrongParameterException(std::string message) throw()
 {
-	_msg = "webserv: Error: " + message;
+	_msg = "Config file: " + message;
 }
 
 const char *CheckConfig::WrongParameterException::what() const throw()

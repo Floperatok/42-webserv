@@ -1,11 +1,9 @@
 #pragma once
 
-#include <iostream>
-#include <fstream>
-#include <exception>
-#include <vector>
-#include <stack>
-#include <cctype>
+#include "Libs.hpp"
+#include "Utils.hpp"
+#include "Master.hpp"
+#include "CheckConfig.hpp"
 
 class Parser
 {
@@ -19,17 +17,13 @@ class Parser
 		static std::vector<std::string> SplitStr(std::string &str, const char *charset);
 		static void TrimStr(std::string &str, const char *charset);
 		static std::vector<std::string> SplitServerContents(std::string &content);
+		static void	ParseConfigFile(const std::string &configPath, Master &master);
 		
 
 		// Exceptions
 		
 
 	private:
-		// Attributes
-		std::string _serverName;
-		int _port;
-		std::string _indexPath;
-
 		// Constructors
 		Parser();
 		Parser(const Parser &toCopy);

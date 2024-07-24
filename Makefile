@@ -3,24 +3,28 @@ CC			=	c++
 CFLAGS		=	-Wall -Werror -Wextra -std=c++98 -g
 NAME		=	webserv
 
-SRC_PATH	=	srcs/
-SRC			=	main.cpp \
-				classes/Webserv.cpp \
-				parsing/myStringTrim.cpp
+SRCS			=	main.cpp \
+				Utils/Utils.cpp \
+				Logs/Logger.cpp \
+				Master/Master.cpp \
+				Server/Server.cpp \
+				Response/Response.cpp \
+				Parser/CheckConfig.cpp \
+				Parser/Parser.cpp
 
 OBJ_PATH	=	objs/
-OBJS		=	$(addprefix $(OBJ_PATH), $(SRC:.cpp=.o))
+OBJS		=	$(addprefix $(OBJ_PATH), $(SRCS:.cpp=.o))
 
-INC_PATH	=	includes/
+INCLUDES	=	-I Utils/ -I Logs/ -I Master/ -I Server/ -I Response -I Parser
 
 all:	$(NAME)
 
 $(NAME):	$(OBJS)
-	$(CC) $(CFLAGS) -I $(INC_PATH) -o $@ $(OBJS)
+	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $(OBJS)
 
-$(OBJ_PATH)%.o:	$(SRC_PATH)%.cpp
+$(OBJ_PATH)%.o:	%.cpp
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -I $(INC_PATH) -c $< -o $@
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 clean:
 	rm -rf $(OBJ_PATH)
@@ -30,3 +34,5 @@ fclean:
 	rm -f $(NAME)
 
 re: fclean all
+
+.PHONY: all clean fclean re
