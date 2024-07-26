@@ -43,6 +43,12 @@ Server &Server::operator=(const Server &other)
 void	Server::setPort(const int port) {	_port = port;	}
 int	Server::getPort(void) const {	return (_port);	}
 
+void	Server::setHost(std::string host) {	_host = inet_addr(host.c_str());	}
+in_addr_t	Server::getHost(void) const {	return (_host);	}
+
+void	Server::setServerName(std::string &serverName) {	_serverName = serverName;	}
+const std::string	&Server::getServerName() const {	return (_serverName);	}
+
 int	Server::getSockfd(void) const {	return (_sockfd);	}
 
 sockaddr_in	Server::getServaddr(void) const {	return (_servaddr);	}

@@ -196,7 +196,8 @@ void CheckConfig::CheckKeywords(std::string &content)
 				if (parameter[4] != ' ')
 					throw (WrongParameterException("Invalid host '" + parameter + "'."));
 				parameter.erase(0, 5);
-				if (parameter.find(' ') != std::string::npos || Parser::SplitStr(parameter, ".").size() != 4)
+				if (parameter.find(' ') != std::string::npos \
+				|| (parameter.find("localhost") == std::string::npos && Parser::SplitStr(parameter, ".").size() != 4))
 					throw (WrongParameterException("Invalid host '" + parameter + "'."));
 			}
 		}

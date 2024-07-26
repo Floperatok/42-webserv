@@ -205,12 +205,14 @@ void	Parser::ParseConfigFile(const std::string &configPath, Master &master)
 			else if (parameter.find("server_name") != std::string::npos)
 			{
 				parameter.erase(0, 12);
-
+				server.setServerName(parameter);
 			}
 			else if (parameter.find("host") != std::string::npos)
 			{
 				parameter.erase(0, 5);
-				
+				if (!parameter.compare("localhost"))
+					parameter = "127.0.0.1";
+				server.setHost(parameter);
 			}
 
 		}
