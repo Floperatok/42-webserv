@@ -62,8 +62,8 @@ class CheckConfig
 		CheckConfig &operator=(const CheckConfig &rhs);
 
 		// Methods
-		static bool CheckBrackets(std::string &content);
-		static bool IsInsideBrackets(std::string &content, size_t index);
-		static bool CheckServerKeywords(std::string &content);
-		static void CheckKeywords(std::string &content);
+		static bool _CheckBrackets(std::string &content);
+		static bool _IsInsideBrackets(std::string &content, size_t index);
+		static bool _CheckServerKeywords(std::string &content);
+		static void _CheckKeywords(std::string &content);
 };

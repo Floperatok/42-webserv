@@ -49,6 +49,15 @@ in_addr_t	Server::getHost(void) const {	return (_host);	}
 void	Server::setServerName(std::string &serverName) {	_serverName = serverName;	}
 const std::string	&Server::getServerName() const {	return (_serverName);	}
 
+void	Server::setRoot(std::string &root) {	_root = root;	}
+const std::string	&Server::getRoot() const {	return (_root);	}
+
+void	Server::setIndex(std::string &index) {	_index = index;	}
+const std::string	&Server::getIndex() const {	return (_index);	}
+
+void	Server::setErrorPage404(std::string &errorPage404) {	_errorPage404 = errorPage404;	}
+const std::string	&Server::getErrorPage404() const {	return (_errorPage404);	}
+
 int	Server::getSockfd(void) const {	return (_sockfd);	}
 
 sockaddr_in	Server::getServaddr(void) const {	return (_servaddr);	}
@@ -62,6 +71,24 @@ void	Server::_setupServAddr(void)
 	_servaddr.sin_family = AF_INET;
 	_servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	_servaddr.sin_port = htons(_port);
+}
+
+void	Server::printServerAttributes() const
+{
+	Logger::debug("----------- SERVER INFOS -----------");
+
+	std::string	str = "Server name: " + _serverName + " | Port: " + Utils::IntToStr(_port);
+	Logger::debug(str.c_str());
+
+	char	hostIP[20] = "";
+	inet_ntop(AF_INET, &(_host), hostIP, INET_ADDRSTRLEN);
+	str = "Host: " + std::string(hostIP) + " | Root: " + _root;
+	Logger::debug(str.c_str());
+
+	str = "Index: " + _index + " | Error page 404: " + _errorPage404;
+	Logger::debug(str.c_str());
+
+	Logger::debug("------------------------------------");
 }
 
 void	Server::setup(void)

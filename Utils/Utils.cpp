@@ -17,8 +17,15 @@ Utils &Utils::operator=(const Utils &rhs)
 	return (*this);
 }
 
+
 /* ########## Members functions ########## */
-int	Utils::strToint(const std::string &str)
+
+/*
+ *	@brief Converts a string into an integer.
+ *	@param str The string to convert.
+ *	@return The converted integer.
+*/
+int	Utils::StrToint(const std::string &str)
 {
 	std::stringstream	ss;
 	int					res = 0;
@@ -27,4 +34,18 @@ int	Utils::strToint(const std::string &str)
 	ss >> res;
 
 	return (res);
+}
+
+/*
+ *	@brief Converts an integer into a string.
+ *	@param n The integer to convert.
+ *	@return The converted string.
+*/
+std::string	Utils::IntToStr(int n)
+{
+	std::stringstream	ss;
+
+	ss << n;
+
+	return (ss.str());
 }

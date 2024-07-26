@@ -32,7 +32,7 @@ Parser::~Parser()
  *	@brief Removes comments in a string content.
  *	@param content The string content.
 */
-void Parser::RemoveComments(std::string &content)
+void Parser::_RemoveComments(std::string &content)
 {
 	size_t	i = content.find('#');
 
@@ -47,7 +47,7 @@ void Parser::RemoveComments(std::string &content)
  *	@brief Replaces white spaces and multiple spaces in a string content by one space.
  *	@param content The string content.
 */
-void Parser::RemoveWhiteSpaces(std::string &content)
+void Parser::_RemoveWhiteSpaces(std::string &content)
 {
 	for (size_t i = 0 ; i < content.length() ; i++)
 	{
@@ -133,8 +133,8 @@ std::vector<std::string> Parser::SplitServerContents(std::string &content)
 	std::vector<size_t>			start;
 	std::vector<size_t>			end;
 
-	RemoveComments(content);
-	RemoveWhiteSpaces(content);
+	_RemoveComments(content);
+	_RemoveWhiteSpaces(content);
 
 	for (size_t i = 0 ; i < content.length() ; i++)
 	{
@@ -183,42 +183,10 @@ void	Parser::ParseConfigFile(const std::string &configPath, Master &master)
 		std::vector<std::string>	parameters = Parser::SplitStr(serversContent.back(), ";{}");
 		Server	server;
 
+		Parser::_ParseServer(parameters, server);
 
 		/************************************ DEBUG ************************************/
-		size_t i = 0;
-		/************************************ DEBUG ************************************/
-
-		for (std::vector<std::string>::iterator it = parameters.begin() ; it != parameters.end() ; it++)
-		{
-			std::string	parameter = *it;
-			Parser::TrimStr(parameter, " ");
-
-			/************************************ DEBUG ************************************/
-			std::cout << i++ << ": '" << parameter << "'" << std::endl;
-			/************************************ DEBUG ************************************/
-
-			if (parameter.find("listen") != std::string::npos)
-			{
-				parameter.erase(0, 7);
-				server.setPort(Utils::strToint(parameter));
-			}
-			else if (parameter.find("server_name") != std::string::npos)
-			{
-				parameter.erase(0, 12);
-				server.setServerName(parameter);
-			}
-			else if (parameter.find("host") != std::string::npos)
-			{
-				parameter.erase(0, 5);
-				if (!parameter.compare("localhost"))
-					parameter = "127.0.0.1";
-				server.setHost(parameter);
-			}
-
-		}
-
-		/************************************ DEBUG ************************************/
-		std::cout << std::endl;
+		server.printServerAttributes();
 		/************************************ DEBUG ************************************/
 
 		servers.push_back(server);
@@ -227,4 +195,64 @@ void	Parser::ParseConfigFile(const std::string &configPath, Master &master)
 	
 	master.setServers(servers);
 
+}
+
+/*
+ *	@brief Parse server informations in config file and replace matching attributes in server class.
+ *	@param parameters Vector of content.
+ *	@param server The server object to parse.
+*/
+void	Parser::_ParseServer(std::vector<std::string> &parameters, Server &server)
+{
+	std::vector<std::string>::iterator it = parameters.begin();
+	while (it != parameters.end())
+	{
+		std::string	parameter = *it;
+		Parser::TrimStr(parameter, " ");
+
+		if (parameter.find("listen") != std::string::npos)
+		{
+			parameter.erase(0, 7);
+			server.setPort(Utils::StrToint(parameter));
+		}
+		else if (parameter.find("server_name") != std::string::npos)
+		{
+			parameter.erase(0, 12);
+			server.setServerName(parameter);
+		}
+		else if (parameter.find("host") != std::string::npos)
+		{
+			parameter.erase(0, 5);
+			if (!parameter.compare("localhost"))
+				parameter = "127.0.0.1";
+			server.setHost(parameter);
+		}
+		else if (parameter.find("root") != std::string::npos)
+		{
+			parameter.erase(0, 5);
+			if (parameter[parameter.length() - 1] != '/')
+				parameter = parameter + '/';
+			server.setRoot(parameter);
+		}
+		else if (parameter.find("index") != std::string::npos)
+		{
+			parameter.erase(0, 6);
+			if (parameter[0] == '/')
+				parameter.erase(0, 1);
+			server.setIndex(parameter);
+		}
+		else if (parameter.find("error_page 404") != std::string::npos)
+		{
+			parameter.erase(0, 15);
+			if (parameter[0] == '/')
+				parameter.erase(0, 1);
+			server.setErrorPage404(parameter);
+		}
+		else if (parameter.find("location") != std::string::npos)
+			break ;
+		it++;
+	}
+
+	for (std::vector<std::string>::iterator ite = parameters.begin() ; ite != it ; ite++)
+		parameters.erase(ite);
 }

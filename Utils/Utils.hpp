@@ -5,7 +5,8 @@
 class Utils
 {
 	public:
-		static int	strToint(const std::string &str);
+		static int	StrToint(const std::string &str);
+		static std::string	IntToStr(int n);
 
 	private:
 		Utils();

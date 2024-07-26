@@ -30,6 +30,7 @@ class Parser
 		Parser &operator=(const Parser &rhs);
 
 		// Methods
-		static void RemoveComments(std::string &content);
-		static void RemoveWhiteSpaces(std::string &content);
+		static void _RemoveComments(std::string &content);
+		static void _RemoveWhiteSpaces(std::string &content);
+		static void	_ParseServer(std::vector<std::string> &parameters, Server &server);
 };

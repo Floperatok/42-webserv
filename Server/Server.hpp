@@ -3,6 +3,7 @@
 # define SERVER_HPP
 
 # include "Libs.hpp"
+# include "Utils.hpp"
 # include "Logger.hpp"
 
 
@@ -14,6 +15,9 @@ private:
 	int					_port;
 	std::string			_serverName;
 	in_addr_t			_host;
+	std::string			_root;
+	std::string			_index;
+	std::string			_errorPage404;
 	int					_sockfd;
 	struct sockaddr_in	_servaddr;
 	
@@ -34,11 +38,18 @@ public:
 	const std::string	&getServerName() const;
 	void		setHost(std::string host);
 	in_addr_t	getHost(void) const;
+	void		setRoot(std::string &root);
+	const std::string	&getRoot() const;
+	void		setIndex(std::string &index);
+	const std::string	&getIndex() const;
+	void		setErrorPage404(std::string &errorPage404);
+	const std::string	&getErrorPage404() const;
 	int			getSockfd(void) const;
 	sockaddr_in	getServaddr(void) const;
 
 	// Methods
 	void	setup(void);
+	void	printServerAttributes() const;
 };
 
 #endif

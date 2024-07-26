@@ -41,13 +41,13 @@ void CheckConfig::CheckConfigFile(const std::string &path)
 	if (content.empty() || !content.length())
 		throw (EmptyFileException());
 
-	if (!CheckBrackets(content))
+	if (!_CheckBrackets(content))
 		throw (UnclosedBracketsException());
 
-	if (!CheckServerKeywords(content))
+	if (!_CheckServerKeywords(content))
 		throw (WrongKeywordException());
 
-	CheckKeywords(content);
+	_CheckKeywords(content);
 
 }
 
@@ -56,7 +56,7 @@ void CheckConfig::CheckConfigFile(const std::string &path)
  *	@param content The string content to check.
 *	@return TRUE if brackets are well closed, FALSE if not.
 */
-bool CheckConfig::CheckBrackets(std::string &content)
+bool CheckConfig::_CheckBrackets(std::string &content)
 {
 	std::stack<char>	tmp;
 
@@ -85,7 +85,7 @@ bool CheckConfig::CheckBrackets(std::string &content)
  *	@param pos The string content.
  *	@return TRUE if inside brackets, FALSE if not.
 */
-bool CheckConfig::IsInsideBrackets(std::string &content, size_t pos)
+bool CheckConfig::_IsInsideBrackets(std::string &content, size_t pos)
 {
 	std::stack<char>	tmp;
 
@@ -111,14 +111,14 @@ bool CheckConfig::IsInsideBrackets(std::string &content, size_t pos)
  *	@param content The string content to check.
  *	@return TRUE if the keyword is 'server', FALSE if not.
 */
-bool CheckConfig::CheckServerKeywords(std::string &content)
+bool CheckConfig::_CheckServerKeywords(std::string &content)
 {
 	std::string keyword = "";
 	size_t i = 0;
 
 	while (content[i])
 	{
-		while (content[i] && !IsInsideBrackets(content, i))
+		while (content[i] && !_IsInsideBrackets(content, i))
 		{
 			if (!std::isspace(content[i]) && content[i] != '{' && content[i] != '}')
 				keyword += content[i];
@@ -131,7 +131,7 @@ bool CheckConfig::CheckServerKeywords(std::string &content)
 		else
 		{
 			keyword = "";
-			while (content[i] && IsInsideBrackets(content, i))
+			while (content[i] && _IsInsideBrackets(content, i))
 				i++;
 		}
 	}
@@ -143,7 +143,7 @@ bool CheckConfig::CheckServerKeywords(std::string &content)
  *	@param content The string content to check.
  *	@return TRUE if the content is valid, FALSE if not.
 */
-void CheckConfig::CheckKeywords(std::string &content)
+void CheckConfig::_CheckKeywords(std::string &content)
 {
 	std::vector<std::string>	serversContent = Parser::SplitServerContents(content);
 	std::string					serverContent;
