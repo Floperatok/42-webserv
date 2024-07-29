@@ -78,7 +78,7 @@ void	Server::_setupServAddr(void)
 
 void	Server::printServerAttributes() const
 {
-	Logger::debug("----------- SERVER INFOS -----------");
+	Logger::debug("--------------- SERVER INFOS ---------------");
 
 	std::string	str = "Server name: " + _serverName + " | Port: " + Utils::IntToStr(_port);
 	Logger::debug(str.c_str());
@@ -91,7 +91,39 @@ void	Server::printServerAttributes() const
 	str = "Index: " + _index + " | Error page 404: " + _errorPage404;
 	Logger::debug(str.c_str());
 
-	Logger::debug("------------------------------------");
+	std::vector<Location>	locations = _locations;
+	for (std::vector<Location>::iterator it = locations.begin() ; it != locations.end() ; it++)
+	{
+		Location location = *it;
+
+		str = "--------------- Location " + location.getLocation();
+		Logger::debug(str.c_str());
+		
+		str = "Root: " + location.getRoot() + " | Index: " + location.getIndex() + " | Auto-Index: ";
+		if (location.getAutoIndex())
+			str += "ON";
+		else
+			str += "OFF";
+		Logger::debug(str.c_str());
+
+		str = "Allow methods: ";
+		std::vector<std::string> allowMethods = location.getAllowMethods();
+		for (std::vector<std::string>::iterator ite = allowMethods.begin() ; ite != allowMethods.end() ; ite++)
+			str += *ite += " ";
+		Logger::debug(str.c_str());
+
+		str = "CGI Path: ";
+		std::vector<std::string> cgiPath = location.getCgiPath();
+		for (std::vector<std::string>::iterator ite = cgiPath.begin() ; ite != cgiPath.end() ; ite++)
+			str += *ite += " ";
+		str += " | CGI Ext: ";
+		std::vector<std::string> cgiExt = location.getCgiExt();
+		for (std::vector<std::string>::iterator ite = cgiExt.begin() ; ite != cgiExt.end() ; ite++)
+			str += *ite += " ";
+		Logger::debug(str.c_str());
+	}
+
+	Logger::debug("");
 }
 
 void	Server::setup(void)

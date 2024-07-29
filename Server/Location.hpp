@@ -19,14 +19,14 @@ class Location
 		const std::string				&getRoot() const;
 		void							setIndex(const std::string &index);
 		const std::string				&getIndex() const;
-		void							setAutoIndex(bool &autoIndex);
-		const bool						&getAutoIndex() const;
+		void							setAutoIndex(bool autoIndex);
+		bool							getAutoIndex() const;
 		void							setAllowMethods(const std::vector<std::string> &allowMethods);
 		const std::vector<std::string>	&getAllowMethods() const;
-		void							setCgiPath(const std::string &cgiPath);
-		const std::string				&getCgiPath() const;
-		void							setCgiExt(const std::string &cgiExt);
-		const std::string				&getCgiExt() const;
+		void							setCgiPath(const std::vector<std::string> &cgiPath);
+		const std::vector<std::string>	&getCgiPath() const;
+		void							setCgiExt(const std::vector<std::string> &cgiExt);
+		const std::vector<std::string>	&getCgiExt() const;
 
 	private:
 		std::string					_location;
@@ -34,6 +34,6 @@ class Location
 		std::string					_index;
 		bool						_autoIndex;
 		std::vector<std::string>	_allowMethods;
-		std::string					_cgiPath;
-		std::string					_cgiExt;
+		std::vector<std::string>	_cgiPath;
+		std::vector<std::string>	_cgiExt;
 };

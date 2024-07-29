@@ -183,6 +183,7 @@ void	Parser::ParseConfigFile(const std::string &configPath, Master &master)
 		Server	server;
 
 		Parser::_ParseServer(parameters, server);
+		Parser::_ParseLocations(parameters, server);
 
 		/************************************ DEBUG ************************************/
 		server.printServerAttributes();
@@ -252,6 +253,71 @@ void	Parser::_ParseServer(std::vector<std::string> &parameters, Server &server)
 		it++;
 	}
 
-	for (std::vector<std::string>::iterator ite = parameters.begin() ; ite != it ; ite++)
-		parameters.erase(ite);
+	while (--it != parameters.begin())
+		parameters.erase(it);
+	parameters.erase(it);
+}
+
+void	Parser::_ParseLocations(std::vector<std::string> &parameters, Server &server)
+{
+	std::vector<Location>	locations;
+
+	for (std::vector<std::string>::iterator it = parameters.begin() ; it != parameters.end() ; it++)
+	{
+		std::string	parameter = *it;
+		Parser::TrimStr(parameter, " ");
+		Location	location;
+
+		if (it != parameters.end() && parameter.find("location") != std::string::npos)
+		{
+			parameter.erase(0, 9);
+			location.setLocation(parameter);
+
+			Parser::TrimStr(parameter = *(++it), " ");
+			while (it != parameters.end() && parameter.find("location") == std::string::npos)
+			{
+				Parser::TrimStr(parameter = *it, " ");
+
+				if (parameter.find("root") != std::string::npos)
+				{
+					parameter.erase(0, 5);
+					location.setRoot(parameter);
+				}
+				else if (parameter.find("index") != std::string::npos \
+						 && parameter.find("autoindex") == std::string::npos)
+				{
+					parameter.erase(0, 6);
+					location.setIndex(parameter);
+				}
+				else if (parameter.find("autoindex") != std::string::npos)
+				{
+					parameter.erase(0, 10);
+					if (parameter.find("on") != std::string::npos)
+						location.setAutoIndex(true);
+					else if (parameter.find("off") != std::string::npos)
+						location.setAutoIndex(false);
+				}
+				else if (parameter.find("allow_methods") != std::string::npos)
+				{
+					parameter.erase(0, 14);
+					location.setAllowMethods(Parser::SplitStr(parameter, " "));
+				}
+				else if (parameter.find("cgi_path") != std::string::npos)
+				{
+					parameter.erase(0, 9);
+					location.setCgiPath(Parser::SplitStr(parameter, " "));
+				}
+				else if (parameter.find("cgi_ext") != std::string::npos)
+				{
+					parameter.erase(0, 8);
+					location.setCgiExt(Parser::SplitStr(parameter, " "));
+				}
+
+				parameter = *(++it);
+			}
+			locations.push_back(location);
+			--it;
+		}
+	}
+	server.setLocations(locations);
 }
