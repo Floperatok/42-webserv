@@ -19,14 +19,10 @@ std::vector<Server>	tempServerInit(const unsigned int n)
 
 int main(int argc, char **argv)
 {
-	// Check args
-	if (argc != 2)
-	{
-		Logger::error("Need config file path as argument.");
-		return (EXIT_FAILURE);
-	}
-
-	std::string	configFilePath = argv[1];
+	if (argc == 1)
+		std::string	configFilePath = "Config/config.conf";
+	else
+		std::string	configFilePath = argv[1];
 
 	try
 	{
