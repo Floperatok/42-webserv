@@ -173,7 +173,6 @@ void	Parser::ParseConfigFile(const std::string &configPath, Master &master)
 	
 	while (std::getline(file, line))
 		content += line + '\n';
-	(void) master;
 
 	std::vector<std::string>	serversContent = Parser::SplitServerContents(content);
 	std::vector<Server>			servers;
