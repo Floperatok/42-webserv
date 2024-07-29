@@ -48,7 +48,7 @@ void	Master::_initFds(void)
 	{
 		if (i < _servers.size() - 1)
 		{
-			_fds[i].fd = _servers[i].getPort();
+			_fds[i].fd = _servers[i].getSockfd();
 			_fds[i].events = POLLIN | POLLOUT;
 		}
 		else
