@@ -49,4 +49,6 @@ int main(int argc, char **argv)
 	{
 		Logger::error(e.what());
 	}
+
+	return (EXIT_SUCCESS);
 }
