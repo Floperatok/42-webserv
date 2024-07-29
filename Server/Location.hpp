@@ -1,0 +1,39 @@
+#pragma once
+
+#include "Libs.hpp"
+#include "Logger.hpp"
+
+class Location
+{
+	public:
+		// Constructors
+		Location();
+		Location(const Location &toCopy);
+		Location	&operator=(const Location &rhs);
+		~Location();
+
+		// Getters and setters
+		void							setLocation(const std::string &location);
+		const std::string				&getLocation() const;
+		void							setRoot(const std::string &root);
+		const std::string				&getRoot() const;
+		void							setIndex(const std::string &index);
+		const std::string				&getIndex() const;
+		void							setAutoIndex(bool &autoIndex);
+		const bool						&getAutoIndex() const;
+		void							setAllowMethods(const std::vector<std::string> &allowMethods);
+		const std::vector<std::string>	&getAllowMethods() const;
+		void							setCgiPath(const std::string &cgiPath);
+		const std::string				&getCgiPath() const;
+		void							setCgiExt(const std::string &cgiExt);
+		const std::string				&getCgiExt() const;
+
+	private:
+		std::string					_location;
+		std::string					_root;
+		std::string					_index;
+		bool						_autoIndex;
+		std::vector<std::string>	_allowMethods;
+		std::string					_cgiPath;
+		std::string					_cgiExt;
+};

@@ -8,6 +8,7 @@ SRCS			=	main.cpp \
 				Logs/Logger.cpp \
 				Master/Master.cpp \
 				Server/Server.cpp \
+				Server/Location.cpp \
 				Response/Response.cpp \
 				Parser/CheckConfig.cpp \
 				Parser/Parser.cpp

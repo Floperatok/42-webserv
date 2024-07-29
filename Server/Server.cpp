@@ -41,10 +41,10 @@ Server &Server::operator=(const Server &other)
 /* ########## Setter/Getter ########## */
 
 void	Server::setPort(const int port) {	_port = port;	}
-int	Server::getPort(void) const {	return (_port);	}
+const int	&Server::getPort(void) const {	return (_port);	}
 
 void	Server::setHost(std::string host) {	_host = inet_addr(host.c_str());	}
-in_addr_t	Server::getHost(void) const {	return (_host);	}
+const in_addr_t	&Server::getHost(void) const {	return (_host);	}
 
 void	Server::setServerName(std::string &serverName) {	_serverName = serverName;	}
 const std::string	&Server::getServerName() const {	return (_serverName);	}
@@ -58,9 +58,12 @@ const std::string	&Server::getIndex() const {	return (_index);	}
 void	Server::setErrorPage404(std::string &errorPage404) {	_errorPage404 = errorPage404;	}
 const std::string	&Server::getErrorPage404() const {	return (_errorPage404);	}
 
-int	Server::getSockfd(void) const {	return (_sockfd);	}
+const int	&Server::getSockfd(void) const {	return (_sockfd);	}
 
-sockaddr_in	Server::getServaddr(void) const {	return (_servaddr);	}
+const sockaddr_in	&Server::getServaddr(void) const {	return (_servaddr);	}
+
+void	Server::setLocations(std::vector<Location> &locations) {	_locations = locations;	}
+const std::vector<Location>	&Server::getLocations() const {	return (_locations);	}
 
 
 /* ########## Member function ########## */
