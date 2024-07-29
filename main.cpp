@@ -19,10 +19,14 @@ std::vector<Server>	tempServerInit(const unsigned int n)
 
 int main(int argc, char **argv)
 {
-	if (argc == 1)
-		std::string	configFilePath = "Config/config.conf";
-	else
+	std::string	configFilePath = "Config/config.conf";
+	if (argc == 2)
 		std::string	configFilePath = argv[1];
+	if (argc > 2)
+	{
+		Logger::error("Too much arguments");
+		return (EXIT_FAILURE);
+	}
 
 	try
 	{
