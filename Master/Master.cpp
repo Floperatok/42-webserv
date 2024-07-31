@@ -70,7 +70,7 @@ void Master::_storeFd(int fd, const short events)
 		i++;
 	if (i == MAX_CLIENT)
 	{
-		Response::serviceUnavailable(fd);
+		Response::ServiceUnavailable503(fd);
 		close(fd);
 	}
 	_fds[i].fd = fd;
