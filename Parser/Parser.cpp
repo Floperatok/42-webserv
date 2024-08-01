@@ -258,6 +258,11 @@ void	Parser::_ParseServer(std::vector<std::string> &parameters, Server &server)
 	parameters.erase(it);
 }
 
+/*
+ *	@brief Parse locations informations in config file and replace matching attributes in server class.
+ *	@param parameters Vector of content.
+ *	@param server The server object to parse.
+*/
 void	Parser::_ParseLocations(std::vector<std::string> &parameters, Server &server)
 {
 	std::vector<Location>	locations;

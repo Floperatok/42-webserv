@@ -151,6 +151,10 @@ void CheckConfig::_CheckKeywords(std::string &content)
 
 	while (serversContent.size() > 0)
 	{
+		std::string 				root = "";
+		std::string 				index = "";
+		std::vector<std::string>	errorPagePaths;
+		
 		serverContent = serversContent.back();
 		if (serverContent.find("listen") == std::string::npos)
 			throw (MissingParameterException("Port not found."));
@@ -197,15 +201,63 @@ void CheckConfig::_CheckKeywords(std::string &content)
 					throw (WrongParameterException("Invalid host '" + parameter + "'."));
 				parameter.erase(0, 5);
 				if (parameter.find(' ') != std::string::npos \
-				|| (parameter.find("localhost") == std::string::npos && Parser::SplitStr(parameter, ".").size() != 4))
+					|| (parameter.find("localhost") == std::string::npos \
+					&& Parser::SplitStr(parameter, ".").size() != 4))
 					throw (WrongParameterException("Invalid host '" + parameter + "'."));
 			}
+			else if (parameter.find("root") != std::string::npos)
+			{
+				if (parameter[4] != ' ')
+					throw (WrongParameterException("Invalid root '" + parameter + "'."));
+				parameter.erase(0, 5);
+				if (parameter.find(' ') != std::string::npos)
+					throw (WrongParameterException("Invalid root '" + parameter + "'."));
+				root = parameter;
+			}
+			else if (parameter.find("index") != std::string::npos
+				  && parameter.find("autoindex") == std::string::npos)
+			{
+				if (parameter[5] != ' ')
+					throw (WrongParameterException("Invalid index '" + parameter + "'."));
+				parameter.erase(0, 6);
+				if (parameter.find(' ') != std::string::npos)
+					throw (WrongParameterException("Invalid index '" + parameter + "'."));
+				index = parameter;
+			}
+			else if (parameter.find("error_page") != std::string::npos)
+			{
+				if (parameter[10] != ' ')
+					throw (WrongParameterException("Invalid error page '" + parameter + "'."));
+				parameter.erase(0, 11);
+				std::vector<std::string>	errorPage = Parser::SplitStr(parameter, " ");
+				if (errorPage.size() != 2 || errorPage[0].find_first_not_of("0123456789") != std::string::npos)
+					throw (WrongParameterException("Invalid error page '" + parameter + "'."));
+				errorPagePaths.push_back(errorPage[1]);
+			}
+			else if (parameter.find("location") != std::string::npos)
+				break ;
+
 		}
 
 		/************************************ DEBUG ************************************/
 		// std::cout << std::endl;
 		/************************************ DEBUG ************************************/
 		
+		if (access(root.c_str(), F_OK) == -1)
+			throw (WrongParameterException("Can't access root path '" + root + "'."));
+		if (root[root.length() - 1] != '/')
+				root = root + '/';
+		if (index[0] == '/')
+			index.erase(0, 1);
+		if (access((root + index).c_str(), F_OK | R_OK) == -1)
+			throw (WrongParameterException("Can't access index path '" + root + index + "'."));
+		for (std::vector<std::string>::iterator it = errorPagePaths.begin() ; it != errorPagePaths.end() ; it++)
+		{
+			if ((*it)[0] == '/')
+				(*it).erase(0, 1);
+			if (access((root + *it).c_str(), F_OK | R_OK) == -1)
+				throw (WrongParameterException("Can't access error page path '" + root + *it + "'."));
+		}
 		serversContent.pop_back();
 	}
 }
