@@ -13,15 +13,21 @@ class Master
 private:
 	// Attributes
 	std::vector<Server>	_servers;
-	unsigned int		_nbSocket;
+	unsigned int		_nbServers;
+	unsigned int		_nfds;
 	struct pollfd		_fds[MAX_CLIENT];
 
 	// Methods
-	void	_initFds(void);
-	void 	_storeFd(int fd, const short events);
-	void	_tooManyClients(struct pollfd &fd);
-	int		_createClientSocket(Server &server);
-	int		_readSocket(const int sockfd);
+	void		_initFds(void);
+	void 		_storeFd(int fd, const short events);
+	void		_compressArray(void);
+	int			_createClientSocket(Server &server);
+	std::string	_readSocket(const int sockfd);
+	void		_sendResponse(const int sockfd, const std::string &request);
+	void		_checkServersConnections(void);
+	void		_manageClientsRequests(void);
+	// debug
+	void		_displayInfos(void) const;
 public:
 	// Constructors
 	Master(std::vector<Server> &servers);

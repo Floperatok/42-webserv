@@ -5,7 +5,7 @@
 /* ########## Constructor ########## */
 
 Master::Master(std::vector<Server> &servers)
-	:	_servers(servers), _nbSocket(servers.size())
+	:	_servers(servers), _nbServers(servers.size())
 {
 }
 
@@ -41,15 +41,32 @@ void	Master::setServers(std::vector<Server> &servers)
 
 /* ########## Member function ########## */
 
+void	Master::setupServers(void)
+{
+	std::vector<Server>::iterator	it = _servers.begin();
+	std::vector<Server>::iterator	ite = _servers.end();
+
+	for ( ; it != ite; it++)
+	{
+		std::ostringstream oss;
+		oss << "Setting up server at port " << it->getPort();
+		Logger::info(oss.str().c_str());
+
+		it->setup();
+	}
+}
+
 void	Master::_initFds(void)
 {
 	Logger::debug("Fds initialization");
+	_nfds = _nbServers;
 	for (size_t i = 0; i < MAX_CLIENT; i++)
 	{
-		if (i < _servers.size() - 1)
+		if (i < _servers.size())
 		{
 			_fds[i].fd = _servers[i].getSockfd();
-			_fds[i].events = POLLIN | POLLOUT;
+			_fds[i].events = POLLIN;
+			_fds[i].revents = 0;
 		}
 		else
 			_fds[i].fd = -1;
@@ -61,8 +78,11 @@ void	Master::_initFds(void)
  *	Send a "Service Unavailable" response and close the connection
  *		if no client slot are available.
 */
-void Master::_storeFd(int fd, const short events)
+void	Master::_storeFd(int fd, const short events)
 {
+	std::ostringstream oss;
+	oss << "Storing client socket_fd " << fd << " in the fds array";
+	Logger::debug(oss.str().c_str());
 	if (fd < 0)
 		return ;
 	int i = 0;
@@ -75,19 +95,40 @@ void Master::_storeFd(int fd, const short events)
 	}
 	_fds[i].fd = fd;
 	_fds[i].events = events;
+	_fds[i].revents = 0;
+	_nfds++;
 }
 
 /*
- *	Creates new client socket and stores it in the array struct pollfd _fds.
+ *	Squeezes together the array and decrements the number of file descriptors.
+*/
+void	Master::_compressArray(void)
+{
+	for (size_t i = 0; i < _nfds; i++)
+	{
+		if (_fds[i].fd == -1)
+		{
+			for (size_t j = i; j < _nfds - 1; j++)
+				_fds[j].fd = _fds[j + 1].fd;
+			i--;
+			_nfds--;
+		}
+	}
+}
+
+/*
+ *	Creates new client socket and returns it.
  *	Returns -1 in case of error.
 */
 int	Master::_createClientSocket(Server &server)
 {
-	int	clientSocket;
-	struct sockaddr_in servaddr = server.getServaddr();
-	if ((clientSocket = accept(server.getPort(), 
+	int					clientSocket;
+	struct sockaddr_in	servaddr = server.getServaddr();
+	socklen_t			servaddrLen = sizeof(servaddr);
+
+	if ((clientSocket = accept(server.getSockfd(), 
 		(struct sockaddr *)&servaddr,
-		(socklen_t *)sizeof(servaddr))) < 0)
+		&servaddrLen)) < 0)
 	{
 		std::ostringstream oss;
 		oss << "Failed to accept to connect the socket binded to the port " 
@@ -96,94 +137,133 @@ int	Master::_createClientSocket(Server &server)
 		return (-1);
 	}
 	std::ostringstream oss;
-	oss << "New connection on port " << ntohs(server.getServaddr().sin_port)
-		<< ", socket fd: " << clientSocket
-		<< std::endl;
+	oss << "New socket created for client connection on port " << ntohs(server.getServaddr().sin_port)
+		<< ", socket_fd: " << clientSocket;
 	Logger::info(oss.str().c_str());
 	return (clientSocket);
 }
 
-int	Master::_readSocket(const int sockfd)
+std::string	Master::_readSocket(const int sockfd)
 {
-	char buff[BUFFER_SIZE];
-	int bytesread = read(sockfd, buff, BUFFER_SIZE);
-	if (bytesread < 0)
-		throw (Logger::FunctionError("read", -1));
-	if (bytesread == 0)
+	std::string receivedData("");
+	char buffer[BUFFER_SIZE];
+	int bytesread;
+	do
 	{
-		std::ostringstream oss;
-		oss << "Client disconnected from socket " << sockfd;
-		Logger::info(oss.str().c_str());
-		return (-1);
-	}
-	buff[bytesread] = '\0';
-	std::ostringstream oss;
-	oss << "Received message: " << buff;
-	Logger::info(oss.str().c_str());
-	return (0);
+		bytesread = recv(sockfd, buffer, BUFFER_SIZE, MSG_DONTWAIT);
+		if (bytesread < 0)
+			throw (Logger::FunctionError("read", -1));
+		receivedData += buffer;
+		if (!std::strcmp(&buffer[bytesread - 4], "\r\n\r\n"))
+		{
+			std::ostringstream oss;
+			oss << "Request received from socket " << sockfd;
+			Logger::info(oss.str().c_str());
+			oss.str("");
+			oss.clear();
+			oss << "Received request: \n\"" << receivedData << "\"";
+			Logger::debug(oss.str().c_str());
+			return (receivedData);
+		}
+	} while (1);
 }
 
-void	Master::setupServers(void)
+void	Master::_sendResponse(const int sockfd, const std::string &request)
 {
-	std::vector<Server>::iterator	it = _servers.begin();
-	std::vector<Server>::iterator	ite = _servers.end();
+	(void)request;
+	std::string placeholder = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 11\r\n\r\nHello world";
+	write(sockfd, placeholder.c_str(), placeholder.size());
 
-	for ( ; it != ite; it++)
+	std::ostringstream oss;
+	oss << "Response send: \n\"" << placeholder << "\"";
+	Logger::info(oss.str().c_str());
+}
+
+/*
+ *	check for new connection on any server socket
+*/
+void	Master::_checkServersConnections(void)
+{
+	for (size_t i = 0; i < _nbServers; i++)
 	{
-		std::ostringstream oss;
-		oss << "Setting up server at port " << it->getPort();
-		Logger::info(oss.str().c_str());
-		it->setup();
+		if (_fds[i].revents == 0)
+			continue ;
+		if (_fds[i].revents != POLLIN)
+			Logger::error("revent is not POLLIN");
+		if (_fds[i].revents & POLLIN)
+		{
+			std::ostringstream oss;
+			oss << "New pending connection on the socket binded to the port "
+				<< _servers[i].getPort();
+			Logger::debug(oss.str().c_str());
+
+			int clientSocket = _createClientSocket(_servers[i]);
+			if ((clientSocket < 0))
+				continue ;
+			_storeFd(clientSocket, POLLIN);
+		}
+	}
+}
+
+void	Master::_manageClientsRequests(void)
+{
+	for (size_t i = _nbServers; i < _nfds; i++)
+	{
+		if (_fds[i].revents == 0)
+			continue ;
+		else if (_fds[i].revents != POLLIN)
+		{
+			Logger::error("revent is not POLLIN");
+			return ;
+		}
+		else
+		{
+			std::ostringstream oss;
+			oss << "Reading socket " << _fds[i].fd << "...";
+			Logger::debug(oss.str().c_str());
+
+			std::string request = _readSocket(_fds[i].fd);
+
+			oss.str("");
+			oss.clear();
+			oss << "Sending response to socket_fd " << _fds[i].fd << "...";
+			Logger::debug(oss.str().c_str());
+
+			_sendResponse(_fds[i].fd, request);
+		}
 	}
 }
 
 void	Master::runServers(void)
 {
-	Logger::info("Running servers");
+	Logger::info("Launching servers");
 	_initFds();
+	Logger::info("Waiting for connections...");
 	while (1)
 	{
-		if (poll(_fds, MAX_CLIENT, -1) < 0) // use nfds instead of MAX_CLIENT
+		// _displayInfos(); // debug tool
+		if (poll(_fds, _nfds, -1) < 0)
 			throw (Logger::FunctionError("poll", errno));
+
+		_checkServersConnections();
 		
-		// check for new connection on any server socket
-		for (size_t i = 0; i < _nbSocket; i++)
-		{
-			if (_fds[i].revents & POLLIN)
-			{
-				int clientSocket;
-				if ((clientSocket = _createClientSocket(_servers[i]) < 0))
-					continue ;
-				_storeFd(clientSocket, POLLIN | POLLOUT);
-			}
-		}
+		_manageClientsRequests();
 
-		// Check all clients for read / write readiness
-		for (int i = _nbSocket; i < MAX_CLIENT; i++) // use nfds instead of MAX_CLIENT
-		{
-			if (_fds[i].fd == -1)
-				continue ;
-
-			// If fd is ready to be read
-			if (_fds[i].revents & POLLIN)
-			{
-				if (_readSocket(_fds[i].fd) < 0)
-				{
-					close(_fds[i].fd);
-					_fds[i].fd = -1;
-				}
-				else
-					_fds[i].events |= POLLOUT;
-			}
-
-			// If fd is ready to be written
-			if (_fds[i].revents & POLLOUT)
-			{
-				std::string hello = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\nHello world";
-				write(_fds[i].fd, hello.c_str(), hello.size());
-			}
-		}
+		_compressArray();
 	}
+}
+
+
+void	Master::_displayInfos(void) const
+{	
+	std::cout << "number of servers: " << _nbServers << std::endl;
+	std::cout << "number of clients: " << _nfds - _nbServers << std::endl;
+	std::cout << "fds: " << _nfds << std::endl;
+	for (size_t i = 0; i < _nfds; i++)
+	{
+		std::cout << "\tfds[" << i << "] = " << _fds[i].fd << std::endl;
+	}
+	
 }
 
 

@@ -17,38 +17,54 @@ std::vector<Server>	tempServerInit(const unsigned int n)
 	return (servers);
 }
 
-int main(int argc, char **argv)
-{
-	std::string	configFilePath = "Config/config.conf";
-	if (argc == 2)
-		std::string	configFilePath = argv[1];
-	if (argc > 2)
-	{
-		Logger::error("Too much arguments");
-		return (EXIT_FAILURE);
-	}
+// int main(int argc, char **argv)
+// {
+// 	std::string	configFilePath = "Config/config.conf";
+// 	if (argc == 2)
+// 		std::string	configFilePath = argv[1];
+// 	if (argc > 2)
+// 	{
+// 		Logger::error("Too much arguments");
+// 		return (EXIT_FAILURE);
+// 	}
 
+// 	try
+// 	{
+// 		// Check config file
+// 		CheckConfig::CheckConfigFile(configFilePath);
+
+// 		// Parse config file
+// 		std::vector<Server> servers = tempServerInit(3);
+// 		Master master(servers);
+// 		Parser::ParseConfigFile(configFilePath, master);
+
+
+// 		// Setup and run servers
+		
+// 		master.setupServers();
+// 		master.runServers();
+
+// 	}
+// 	catch (const std::exception &e)
+// 	{
+// 		Logger::error(e.what());
+// 	}
+
+// 	return (EXIT_SUCCESS);
+// }
+
+int main(void)
+{
 	try
 	{
-		// Check config file
-		CheckConfig::CheckConfigFile(configFilePath);
-
-		// Parse config file
-		std::vector<Server> servers = tempServerInit(3);
+		std::vector<Server> servers = tempServerInit(1);
 		Master master(servers);
-		Parser::ParseConfigFile(configFilePath, master);
-
-
-		// Setup and run servers
-		
 		master.setupServers();
 		master.runServers();
-
 	}
-	catch (const std::exception &e)
+	catch(const std::exception& e)
 	{
-		Logger::error(e.what());
+		std::cerr << "Exception: " << e.what() << '\n';
 	}
-
-	return (EXIT_SUCCESS);
+	return (0);
 }

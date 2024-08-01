@@ -8,7 +8,6 @@ Server::Server(void)
 {
 	_sockfd = -1;
 	_port = -1;
-	std::memset(&_servaddr, 0, sizeof(_servaddr));
 }
 
 Server::Server(const Server &copy)
@@ -146,6 +145,9 @@ void	Server::setup(void)
 	Logger::debug("Listen for connections");
 	if ((listen(_sockfd, 512)) < 0)
 		throw (Logger::FunctionError("listen", errno));
+	Logger::debug("Setting up socket in non-blocking mode");
+	if (fcntl(_sockfd, F_SETFL, O_NONBLOCK) < 0)
+		throw (Logger::FunctionError("fcntl", errno));
 }
 
 
