@@ -171,12 +171,14 @@ std::string	Master::_readSocket(const int sockfd)
 void	Master::_sendResponse(const int sockfd, const std::string &request)
 {
 	(void)request;
-	std::string placeholder = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 11\r\n\r\nHello world";
-	write(sockfd, placeholder.c_str(), placeholder.size());
+	// std::string placeholder = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 11\r\n\r\nHello world";
+	// write(sockfd, placeholder.c_str(), placeholder.size());
 
-	std::ostringstream oss;
-	oss << "Response send: \n\"" << placeholder << "\"";
-	Logger::info(oss.str().c_str());
+	Response::BadRequest400(sockfd);
+
+	// std::ostringstream oss;
+	// oss << "Response send: \n\"" << placeholder << "\"";
+	// Logger::info(oss.str().c_str());
 }
 
 /*
