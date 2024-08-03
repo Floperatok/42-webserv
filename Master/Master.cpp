@@ -33,6 +33,7 @@ Master &Master::operator=(const Master &other)
 
 
 /* ########## Setter/Getter ########## */
+
 void	Master::setServers(std::vector<Server> &servers)
 {
 	_servers = servers;
@@ -152,7 +153,7 @@ std::string	Master::_readSocket(const int sockfd)
 	{
 		bytesread = recv(sockfd, buffer, BUFFER_SIZE, MSG_DONTWAIT);
 		if (bytesread < 0)
-			throw (Logger::FunctionError("read", -1));
+			throw (Logger::FunctionError("recv", errno)); // no errno
 		receivedData += buffer;
 		if (!std::strcmp(&buffer[bytesread - 4], "\r\n\r\n"))
 		{
@@ -171,14 +172,14 @@ std::string	Master::_readSocket(const int sockfd)
 void	Master::_sendResponse(const int sockfd, const std::string &request)
 {
 	(void)request;
-	// std::string placeholder = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 11\r\n\r\nHello world";
-	// write(sockfd, placeholder.c_str(), placeholder.size());
+	std::string placeholder = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 11\r\n\r\nHello world";
+	write(sockfd, placeholder.c_str(), placeholder.size());
 
-	Response::BadRequest400(sockfd);
+	// Response::BadRequest400(sockfd);
 
-	// std::ostringstream oss;
-	// oss << "Response send: \n\"" << placeholder << "\"";
-	// Logger::info(oss.str().c_str());
+	std::ostringstream oss;
+	oss << "Response send: \n\"" << placeholder << "\"";
+	Logger::info(oss.str().c_str());
 }
 
 /*
@@ -232,6 +233,14 @@ void	Master::_manageClientsRequests(void)
 			Logger::debug(oss.str().c_str());
 
 			_sendResponse(_fds[i].fd, request);
+
+			oss.str("");
+			oss.clear();
+			oss << "Socket " << _fds[i].fd << " closed";
+			Logger::debug(oss.str().c_str());
+			
+			close(_fds[i].fd);
+			_fds[i].fd = -1;
 		}
 	}
 }
@@ -244,13 +253,16 @@ void	Master::runServers(void)
 	while (1)
 	{
 		// _displayInfos(); // debug tool
-		if (poll(_fds, _nfds, -1) < 0)
+		int rc = poll(_fds, _nfds, -1);
+		if (rc < 0)
 			throw (Logger::FunctionError("poll", errno));
-
+		if (rc == 0)
+		{
+			Logger::warning("poll timed out");
+			continue ;
+		}
 		_checkServersConnections();
-		
 		_manageClientsRequests();
-
 		_compressArray();
 	}
 }
@@ -261,10 +273,10 @@ void	Master::_displayInfos(void) const
 	std::cout << "number of servers: " << _nbServers << std::endl;
 	std::cout << "number of clients: " << _nfds - _nbServers << std::endl;
 	std::cout << "fds: " << _nfds << std::endl;
-	for (size_t i = 0; i < _nfds; i++)
-	{
-		std::cout << "\tfds[" << i << "] = " << _fds[i].fd << std::endl;
-	}
+	for (size_t i = 0; i < _nbServers; i++)
+		std::cout << "\tfds[" << i << "] = " << _fds[i].fd << " (server)" << std::endl;
+	for (size_t i = _nbServers; i < _nfds; i++)
+		std::cout << "\tfds[" << i << "] = " << _fds[i].fd << " (client)" << std::endl;
 	
 }
 

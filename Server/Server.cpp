@@ -134,7 +134,9 @@ void	Server::setup(void)
 	_setupServAddr();
 	
 	int option_value = 1;
-    setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &option_value, sizeof(int));
+    if (setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, 
+		&option_value, sizeof(int)) < 0)
+		throw (Logger::FunctionError("setsockopt", errno));
 	
 	std::ostringstream oss;
 	oss << "Binding socket at port " << _port;

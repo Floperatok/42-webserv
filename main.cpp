@@ -57,14 +57,14 @@ int main(void)
 {
 	try
 	{
-		std::vector<Server> servers = tempServerInit(1);
+		std::vector<Server> servers = tempServerInit(2);
 		Master master(servers);
 		master.setupServers();
 		master.runServers();
 	}
 	catch(const std::exception& e)
 	{
-		std::cerr << "Exception: " << e.what() << '\n';
+		Logger::error(e.what());
 	}
 	return (0);
 }
