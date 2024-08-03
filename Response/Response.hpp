@@ -19,10 +19,18 @@
 class Response
 {
 private:
+	// Constructors
 	Response(void);
 	Response(const Response &copy);
 	Response &operator=(const Response &other);
+
+	// Methods
+	static void	_SendResponse(int fd, std::string path);
 public:
+	// Constructors
+	~Response(void);
+
+	// Methods
 	static void BadRequest400(int fd, std::string path = ERROR_400);
 	static void	Forbidden403(int fd, std::string path = ERROR_403);
 	static void NotFound404(int fd, std::string path = ERROR_404);
@@ -33,5 +41,4 @@ public:
 	static void BadGateway502(int fd, std::string path = ERROR_502);
 	static void	ServiceUnavailable503(int fd, std::string path = ERROR_503);
 	static void GatewayTimeout504(int fd, std::string path = ERROR_504);
-	~Response(void);
 };
