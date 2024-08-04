@@ -144,9 +144,12 @@ int	Master::_createClientSocket(Server &server)
 	return (clientSocket);
 }
 
-std::string Master::_readSocket(const int sockfd)
+/*
+ *	Reads from the socket and stores the request in receivedData.
+ *	Returns 0 if connection is closed, else 1.
+*/
+int Master::_readSocket(const int sockfd, std::string &receivedData)
 {
-    std::string receivedData("");
     char buffer[BUFFER_SIZE];
     int bytesread;
 
@@ -158,8 +161,10 @@ std::string Master::_readSocket(const int sockfd)
 
         if (bytesread == 0) 
 		{
-			std::cout << "closed connection" << std::endl;
-            break;
+			std::ostringstream oss;
+			oss << "Connection of the socket " << sockfd << " closed.";
+			Logger::info(oss.str().c_str());
+		    return (0);
         }
 
         receivedData.append(buffer, bytesread);
@@ -175,10 +180,9 @@ std::string Master::_readSocket(const int sockfd)
             oss << "Received request: \n\"" << receivedData << "\"";
             Logger::debug(oss.str().c_str());
 
-            return receivedData;
+            return (1);
         }
     }
-    return receivedData;
 }
 
 void	Master::_sendResponse(const int sockfd, const std::string &request)
@@ -203,9 +207,7 @@ void	Master::_checkServersConnections(void)
 	{
 		if (_fds[i].revents == 0)
 			continue ;
-		if (_fds[i].revents != POLLIN)
-			Logger::error("revent is not POLLIN");
-		if (_fds[i].revents == POLLIN)
+		if (_fds[i].revents & POLLIN)
 		{
 			std::ostringstream oss;
 			oss << "New pending connection on the socket binded to the port "
@@ -226,18 +228,26 @@ void	Master::_manageClientsRequests(void)
 	{
 		if (_fds[i].revents == 0)
 			continue ;
-		else if (_fds[i].revents != POLLIN)
+		else if (_fds[i].revents & POLLERR)
 		{
-			Logger::error("revent is not POLLIN");
-			return ;
+			std::ostringstream oss;
+			oss << "socket " << _fds[i].fd << " has POLLERR in revents. revents is " << _fds[i].revents << std::endl;
+			Logger::error(oss.str().c_str());
 		}
-		else
+		else if (_fds[i].revents & POLLIN)
 		{
 			std::ostringstream oss;
 			oss << "Reading socket " << _fds[i].fd << "...";
 			Logger::debug(oss.str().c_str());
 
-			std::string request = _readSocket(_fds[i].fd);
+			std::string request("");
+			if (!_readSocket(_fds[i].fd, request))
+			{
+				close(_fds[i].fd);
+				_fds[i].fd = -1;
+				_nfds--;
+				continue ;
+			}
 
 			oss.str("");
 			oss.clear();
@@ -256,7 +266,7 @@ void	Master::runServers(void)
 	Logger::info("Waiting for connections...");
 	while (1)
 	{
-		// _displayInfos(); // debug tool
+		_displayInfos(); // debug tool
 		int rc = poll(_fds, _nfds, -1);
 		if (rc < 0)
 			throw (Logger::FunctionError("poll", errno));

@@ -22,7 +22,7 @@ private:
 	void 		_storeFd(int fd, const short events);
 	void		_compressArray(void);
 	int			_createClientSocket(Server &server);
-	std::string	_readSocket(const int sockfd);
+	int			_readSocket(const int sockfd, std::string &receivedData);
 	void		_sendResponse(const int sockfd, const std::string &request);
 	void		_checkServersConnections(void);
 	void		_manageClientsRequests(void);
