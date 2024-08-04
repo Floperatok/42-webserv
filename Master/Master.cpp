@@ -144,42 +144,54 @@ int	Master::_createClientSocket(Server &server)
 	return (clientSocket);
 }
 
-std::string	Master::_readSocket(const int sockfd)
+std::string Master::_readSocket(const int sockfd)
 {
-	std::string receivedData("");
-	char buffer[BUFFER_SIZE];
-	int bytesread;
-	do
+    std::string receivedData("");
+    char buffer[BUFFER_SIZE];
+    int bytesread;
+
+    while (1) 
 	{
-		bytesread = recv(sockfd, buffer, BUFFER_SIZE, MSG_DONTWAIT);
-		if (bytesread < 0)
-			throw (Logger::FunctionError("recv", errno)); // no errno
-		receivedData += buffer;
-		if (!std::strcmp(&buffer[bytesread - 4], "\r\n\r\n"))
+        bytesread = recv(sockfd, buffer, BUFFER_SIZE, MSG_DONTWAIT);
+        if (bytesread < 0)
+            throw Logger::FunctionError("recv", errno);
+
+        if (bytesread == 0) 
 		{
-			std::ostringstream oss;
-			oss << "Request received from socket " << sockfd;
-			Logger::info(oss.str().c_str());
-			oss.str("");
-			oss.clear();
-			oss << "Received request: \n\"" << receivedData << "\"";
-			Logger::debug(oss.str().c_str());
-			return (receivedData);
-		}
-	} while (1);
+			std::cout << "closed connection" << std::endl;
+            break;
+        }
+
+        receivedData.append(buffer, bytesread);
+
+        if (receivedData.size() >= 4 && receivedData.compare(receivedData.size() - 4, 4, "\r\n\r\n") == 0) 
+		{
+            std::ostringstream oss;
+            oss << "Request received from socket " << sockfd;
+            Logger::info(oss.str().c_str());
+
+            oss.str("");
+            oss.clear();
+            oss << "Received request: \n\"" << receivedData << "\"";
+            Logger::debug(oss.str().c_str());
+
+            return receivedData;
+        }
+    }
+    return receivedData;
 }
 
 void	Master::_sendResponse(const int sockfd, const std::string &request)
 {
 	(void)request;
-	std::string placeholder = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 11\r\n\r\nHello world";
-	write(sockfd, placeholder.c_str(), placeholder.size());
+	// std::string placeholder = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 11\r\n\r\nHello world";
+	// write(sockfd, placeholder.c_str(), placeholder.size());
 
-	// Response::BadRequest400(sockfd);
+	Response::BadRequest400(sockfd);
 
-	std::ostringstream oss;
-	oss << "Response send: \n\"" << placeholder << "\"";
-	Logger::info(oss.str().c_str());
+	// std::ostringstream oss;
+	// oss << "Response send: \n\"" << placeholder << "\"";
+	// Logger::info(oss.str().c_str());
 }
 
 /*
@@ -193,7 +205,7 @@ void	Master::_checkServersConnections(void)
 			continue ;
 		if (_fds[i].revents != POLLIN)
 			Logger::error("revent is not POLLIN");
-		if (_fds[i].revents & POLLIN)
+		if (_fds[i].revents == POLLIN)
 		{
 			std::ostringstream oss;
 			oss << "New pending connection on the socket binded to the port "
@@ -233,14 +245,6 @@ void	Master::_manageClientsRequests(void)
 			Logger::debug(oss.str().c_str());
 
 			_sendResponse(_fds[i].fd, request);
-
-			oss.str("");
-			oss.clear();
-			oss << "Socket " << _fds[i].fd << " closed";
-			Logger::debug(oss.str().c_str());
-			
-			close(_fds[i].fd);
-			_fds[i].fd = -1;
 		}
 	}
 }

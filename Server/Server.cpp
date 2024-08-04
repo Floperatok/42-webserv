@@ -141,11 +141,11 @@ void	Server::setup(void)
 	std::ostringstream oss;
 	oss << "Binding socket at port " << _port;
 	Logger::debug(oss.str().c_str());
-	if ((bind(_sockfd, (struct sockaddr *) &_servaddr, sizeof(_servaddr))) < 0)
+	if (bind(_sockfd, (struct sockaddr *) &_servaddr, sizeof(_servaddr)) < 0)
 		throw (Logger::FunctionError("bind", errno));
 	
 	Logger::debug("Listen for connections");
-	if ((listen(_sockfd, 512)) < 0)
+	if (listen(_sockfd, 512) < 0)
 		throw (Logger::FunctionError("listen", errno));
 	Logger::debug("Setting up socket in non-blocking mode");
 	if (fcntl(_sockfd, F_SETFL, O_NONBLOCK) < 0)
