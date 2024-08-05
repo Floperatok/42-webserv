@@ -3,6 +3,10 @@
 
 
 /* ########## Constructor ########## */
+Master::Master() : _nbServers(0), _nfds(0)
+{
+
+}
 
 Master::Master(std::vector<Server> &servers)
 	:	_servers(servers), _nbServers(servers.size())
@@ -26,7 +30,10 @@ Master &Master::operator=(const Master &other)
 {
 	if (&other != this)
 	{
-		
+		_servers = other._servers;
+		_nbServers = other._nbServers;
+		_nfds = other._nfds;
+		_initFds();
 	}
 	return (*this);
 }
@@ -55,6 +62,7 @@ void	Master::setupServers(void)
 
 		it->setup();
 	}
+	_nbServers = _servers.size();
 }
 
 void	Master::_initFds(void)

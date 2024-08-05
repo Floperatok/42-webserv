@@ -30,6 +30,7 @@ private:
 	void		_displayInfos(void) const;
 public:
 	// Constructors
+	Master();
 	Master(std::vector<Server> &servers);
 	Master(const Master &copy);
 	~Master(void);
