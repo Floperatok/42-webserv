@@ -5,6 +5,8 @@
 #include "Master.hpp"
 #include "CheckConfig.hpp"
 
+class Master;
+
 class Parser
 {
 	public:

@@ -27,11 +27,17 @@ Server &Server::operator=(const Server &other)
 {
 	if (&other != this)
 	{
-		_sockfd						= other._sockfd;
 		_port						= other._port;
+		_serverName					= other._serverName;
+		_host						= other._host;
+		_root						= other._root;
+		_index						= other._index;
+		_errorPage404				= other._errorPage404;
+		_sockfd						= other._sockfd;
 		_servaddr.sin_family		= other._servaddr.sin_family;
 		_servaddr.sin_addr.s_addr	= other._servaddr.sin_addr.s_addr;
 		_servaddr.sin_port			= other._servaddr.sin_port;
+		_locations					= other._locations;
 	}
 	return (*this);
 }

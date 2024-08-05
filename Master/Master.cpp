@@ -41,7 +41,7 @@ Master &Master::operator=(const Master &other)
 
 /* ########## Setter/Getter ########## */
 
-void	Master::setServers(std::vector<Server> &servers)
+void	Master::setServers(std::vector<Server> servers)
 {
 	_servers = servers;
 }
@@ -59,7 +59,6 @@ void	Master::setupServers(void)
 		std::ostringstream oss;
 		oss << "Setting up server at port " << it->getPort();
 		Logger::info(oss.str().c_str());
-
 		it->setup();
 	}
 	_nbServers = _servers.size();
@@ -193,17 +192,10 @@ int Master::_readSocket(const int sockfd, std::string &receivedData)
     }
 }
 
-void	Master::_sendResponse(const int sockfd, const std::string &request)
+void	Master::_sendResponse(Server &server, const int sockfd, const std::string &request)
 {
-	(void)request;
-	// std::string placeholder = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 11\r\n\r\nHello world";
-	// write(sockfd, placeholder.c_str(), placeholder.size());
-
-	Response::BadRequest400(sockfd);
-
-	// std::ostringstream oss;
-	// oss << "Response send: \n\"" << placeholder << "\"";
-	// Logger::info(oss.str().c_str());
+	// server.printServerAttributes();
+	Response::SendResponse(server, sockfd, request);
 }
 
 /*
@@ -261,8 +253,7 @@ void	Master::_manageClientsRequests(void)
 			oss.clear();
 			oss << "Sending response to socket_fd " << _fds[i].fd << "...";
 			Logger::debug(oss.str().c_str());
-
-			_sendResponse(_fds[i].fd, request);
+			_sendResponse(_servers[i], _fds[i].fd, request);
 		}
 	}
 }
@@ -274,7 +265,7 @@ void	Master::runServers(void)
 	Logger::info("Waiting for connections...");
 	while (1)
 	{
-		_displayInfos(); // debug tool
+		// _displayInfos(); // debug tool
 		int rc = poll(_fds, _nfds, -1);
 		if (rc < 0)
 			throw (Logger::FunctionError("poll", errno));

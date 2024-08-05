@@ -186,13 +186,14 @@ void	Parser::ParseConfigFile(const std::string &configPath, Master &master)
 		Parser::_ParseLocations(parameters, server);
 
 		/************************************ DEBUG ************************************/
-		server.printServerAttributes();
+		// server.printServerAttributes();
 		/************************************ DEBUG ************************************/
 
 		servers.push_back(server);
 		serversContent.pop_back();
 	}
-	
+
+	// return (servers);
 	master.setServers(servers);
 
 }

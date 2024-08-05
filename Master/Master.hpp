@@ -23,7 +23,7 @@ private:
 	void		_compressArray(void);
 	int			_createClientSocket(Server &server);
 	int			_readSocket(const int sockfd, std::string &receivedData);
-	void		_sendResponse(const int sockfd, const std::string &request);
+	void		_sendResponse(Server &server, const int sockfd, const std::string &request);
 	void		_checkServersConnections(void);
 	void		_manageClientsRequests(void);
 	// debug
@@ -42,7 +42,7 @@ public:
 	void	runServers(void);
 
 	// Getters and setters
-	void	setServers(std::vector<Server> &servers);
+	void	setServers(std::vector<Server> servers);
 };
 
 #endif
