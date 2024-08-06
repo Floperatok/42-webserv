@@ -35,7 +35,7 @@ Response &Response::operator=(const Response &other)
 
 
 /* ########## Member function ########## */
-void	Response::SendResponse(Server &server, int fd, std::string request)
+void	Response::SendResponse(std::vector<Server> &servers, int fd, std::string request)
 {
 	std::string					line = request.substr(0, request.find('\n'));
 	std::vector<std::string>	req = Parser::SplitStr(line, " ");
