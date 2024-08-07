@@ -27,7 +27,7 @@ private:
 	Response &operator=(const Response &other);
 
 	// Methods
-	static void			_WritePage(int fd, std::string path, std::string type, std::string status);
+	static int			_WritePage(int fd, std::string path, std::string type, std::string status);
 	static Server		_GetServer(std::vector<Server> &servers, std::string request);
 	static std::string	_GetPath(Server &server, std::string subPath);
 	static int			_GetPort(std::string request);
@@ -37,7 +37,7 @@ public:
 	~Response(void);
 
 	// Methods
-	static void	SendResponse(std::vector<Server> &servers, int fd, std::string request);
+	static int	SendResponse(std::vector<Server> &servers, int fd, std::string request);
 	// Error pages
 	static int	BadRequest400(int fd, std::string path = ERROR_400);
 	static int	Forbidden403(int fd, std::string path = ERROR_403);

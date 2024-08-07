@@ -35,7 +35,7 @@ Response &Response::operator=(const Response &other)
 
 
 /* ########## Member function ########## */
-void	Response::SendResponse(std::vector<Server> &servers, int fd, std::string request)
+int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string request)
 {
 	std::string					line = request.substr(0, request.find('\n'));
 	std::vector<std::string>	req = Parser::SplitStr(line, " ");
@@ -44,12 +44,30 @@ void	Response::SendResponse(std::vector<Server> &servers, int fd, std::string re
 
 	std::string					path = _GetPath(server, req[1]);
 
-	if (!method.compare("GET"))
+	if (method == "GET")
 	{
 		std::string	type = _GetContentType(request, path);
-
-		_WritePage(fd, path, type, "200 OK");
+		return (_WritePage(fd, path, type, "200 OK"));
 	}
+	// else if (method == "POST")
+	// {
+
+	// }
+	// else if (method == "PUT")
+	// {
+
+	// }
+	// else if (method == "DELETE")
+	// {
+
+	// }
+	// else if (method == "OPTIONS")
+	// {
+
+	// }
+	else
+		return (MethodNotAllowed405(fd));
+	return (200);
 }
 
 /*
@@ -90,6 +108,7 @@ std::string	Response::_GetPath(Server &server, std::string subPath)
 	if (!subPath.compare("/"))
 		path = root + "/" + server.getIndex();
 
+	std::cout << "PATH = " << path << std::endl;
 	return (path);
 }
 
@@ -131,18 +150,20 @@ std::string	Response::_GetContentType(std::string request, std::string path)
 		return ("text/plain");
 
 	std::string					ext = path.substr(path.find(".") + 1);
-
+	if (ext == "jpg")
+				ext = "jpeg";
+	
 	for (std::vector<std::string>::iterator it = types.begin() ; it != types.end() ; it++)
 	{
 		std::vector<std::string>	type = Parser::SplitStr(*it, "/");
-		if (!type[1].compare(ext))
+		if (type[1] == ext)
 		{
 			contentType = *it;
 			break ;
 		}
-		else if (!type[1].compare("*"))
+		else if (type[1] == "*")
 		{
-			contentType = type[0] + ext;
+			contentType = type[0] + "/" + ext;
 			break ;
 		}
 	}
@@ -152,26 +173,41 @@ std::string	Response::_GetContentType(std::string request, std::string path)
 	return (contentType);
 }
 
-void	Response::_WritePage(int fd, std::string path, std::string type, std::string status)
+/*
+ *	@brief	Writes the header and the content into the socket fd.
+ *	@param	fd The socket's file descriptor.
+ *	@param	path The path of the ressource we want to access to.
+ *	@param	type The content-type.
+ *	@param	status The string-formated status code.
+ *	@return	The status code.
+*/
+int	Response::_WritePage(int fd, std::string path, std::string type, std::string status)
 {
-	std::ifstream		file(path.c_str());
-	std::string			text;
-	std::string			content;
+	std::ifstream		file(path.c_str(), std::ios::in | std::ios::binary);
 
 	if (!file.is_open())
-		Logger::error(("Can't open file '" + path + "'").c_str());
+		return (NotFound404(fd));
 	
-	getline(file, content, '\0');
+	std::vector<char> content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
-	text = "HTTP/1.1 " + status + "\r\nContent-Type: " + type + "\r\nContent-Length: " \
-			+ Utils::IntToStr(content.length()) + "\r\n\r\n";
-	text += content;
+	std::string header = "HTTP/1.1 " + status + "\r\nContent-Type: " + type + "\r\nContent-Length: " \
+			+ Utils::IntToStr(content.size()) + "\r\n\r\n";
 
-	write(fd, text.c_str(), text.length());
+	write(fd, header.c_str(), header.size());
+	write(fd, content.data(), content.size());
 
-	text = "Response send:\n" + text;
+	Logger::debug(("Response send: HTTP/1.1 " + status + " | Content-Type: " + type \
+				+ " | Content-Length: " + Utils::IntToStr(content.size())).c_str());
+
+	return (200);
 }
 
+/*
+ *	@brief	Displays the error 400 page.
+ *	@param	fd	The socket's file descriptor.
+ *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@return	The corresponding status code.
+*/
 int	Response::BadRequest400(int fd, std::string path)
 {
 	_WritePage(fd, path, "text/html", "400 Bad Request");
@@ -179,6 +215,12 @@ int	Response::BadRequest400(int fd, std::string path)
 	return (400);
 }
 
+/*
+ *	@brief	Displays the error 403 page.
+ *	@param	fd	The socket's file descriptor.
+ *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@return	The corresponding status code.
+*/
 int	Response::Forbidden403(int fd, std::string path)
 {
 	_WritePage(fd, path, "text/html", "403 Forbidden");
@@ -186,6 +228,12 @@ int	Response::Forbidden403(int fd, std::string path)
 	return (403);
 }
 
+/*
+ *	@brief	Displays the error 404 page.
+ *	@param	fd	The socket's file descriptor.
+ *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@return	The corresponding status code.
+*/
 int	Response::NotFound404(int fd, std::string path)
 {
 	_WritePage(fd, path, "text/html", "404 Not Found");
@@ -193,6 +241,12 @@ int	Response::NotFound404(int fd, std::string path)
 	return (404);
 }
 
+/*
+ *	@brief	Displays the error 405 page.
+ *	@param	fd	The socket's file descriptor.
+ *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@return	The corresponding status code.
+*/
 int	Response::MethodNotAllowed405(int fd, std::string path)
 {
 	_WritePage(fd, path, "text/html", "405 Method Not Allowed");
@@ -200,6 +254,12 @@ int	Response::MethodNotAllowed405(int fd, std::string path)
 	return (405);
 }
 
+/*
+ *	@brief	Displays the error 408 page.
+ *	@param	fd	The socket's file descriptor.
+ *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@return	The corresponding status code.
+*/
 int	Response::RequestTimeout408(int fd, std::string path)
 {
 	_WritePage(fd, path, "text/html", "408 Request Timeout");
@@ -207,6 +267,12 @@ int	Response::RequestTimeout408(int fd, std::string path)
 	return (408);
 }
 
+/*
+ *	@brief	Displays the error 500 page.
+ *	@param	fd	The socket's file descriptor.
+ *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@return	The corresponding status code.
+*/
 int	Response::InternalServerError500(int fd, std::string path)
 {
 	_WritePage(fd, path, "text/html", "500 Internal Server Error");
@@ -214,6 +280,12 @@ int	Response::InternalServerError500(int fd, std::string path)
 	return (500);
 }
 
+/*
+ *	@brief	Displays the error 501 page.
+ *	@param	fd	The socket's file descriptor.
+ *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@return	The corresponding status code.
+*/
 int	Response::MethodNotImplemented501(int fd, std::string path)
 {
 	_WritePage(fd, path, "text/html", "501 Not Implemented");
@@ -221,6 +293,12 @@ int	Response::MethodNotImplemented501(int fd, std::string path)
 	return (501);
 }
 
+/*
+ *	@brief	Displays the error 502 page.
+ *	@param	fd	The socket's file descriptor.
+ *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@return	The corresponding status code.
+*/
 int	Response::BadGateway502(int fd, std::string path)
 {
 	_WritePage(fd, path, "text/html", "502 Bad Gateway");
@@ -229,7 +307,10 @@ int	Response::BadGateway502(int fd, std::string path)
 }
 
 /*
- *	Send a "Service Unavailable" reponse 
+ *	@brief	Displays the error 503 page.
+ *	@param	fd	The socket's file descriptor.
+ *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@return	The corresponding status code.
 */
 int	Response::ServiceUnavailable503(int fd, std::string path)
 {
@@ -238,6 +319,12 @@ int	Response::ServiceUnavailable503(int fd, std::string path)
 	return (503);
 }
 
+/*
+ *	@brief	Displays the error 504 page.
+ *	@param	fd	The socket's file descriptor.
+ *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@return	The corresponding status code.
+*/
 int	Response::GatewayTimeout504(int fd, std::string path)
 {
 	_WritePage(fd, path, "text/html", "504 Gateway Timeout");

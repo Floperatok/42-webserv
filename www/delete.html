@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Webserv</title>
+    <title>Test DELETE</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -20,7 +20,13 @@
         </nav>
     </header>
     <main>
-        <h1>Welcome on...<br>Webserv!</h1>
+        <h1>Test DELETE Request</h1>
+        <form action="/delete_test" method="POST">
+            <input type="hidden" name="_method" value="DELETE">
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name">
+            <input type="submit" value="Submit">
+        </form>
     </main>
     <footer>
         <p>&copy; 2024, by drenassi and nsalles.</p>
