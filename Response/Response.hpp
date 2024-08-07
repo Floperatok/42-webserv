@@ -34,7 +34,7 @@ public:
 	~Response(void);
 
 	// Methods
-	static void	SendResponse(Server &server, int fd, std::string request);
+	static void	SendResponse(std::vector<Server> &servers, int fd, std::string request);
 	// Error pages
 	static int	BadRequest400(int fd, std::string path = ERROR_400);
 	static int	Forbidden403(int fd, std::string path = ERROR_403);
