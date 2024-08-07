@@ -39,35 +39,117 @@ void	Response::SendResponse(std::vector<Server> &servers, int fd, std::string re
 {
 	std::string					line = request.substr(0, request.find('\n'));
 	std::vector<std::string>	req = Parser::SplitStr(line, " ");
-
 	std::string					method = req[0];
+	Server						server = _GetServer(servers, request);
 
-	std::string					root = server.getRoot();
-	if (root[root.length() - 1] == '/')
-		root.erase(root.length() - 1, 1);
-
-	std::cout << "ROOT = '" << server.getRoot() << "'" << std::endl;
-
-	std::string					url = root + req[1];
+	std::string					path = _GetPath(server, req[1]);
 
 	if (!method.compare("GET"))
 	{
-		_GetContentType(request);
+		std::string	type = _GetContentType(request, path);
 
-		_WritePage(fd, url, "text/html", "200 OK");
+		_WritePage(fd, path, type, "200 OK");
 	}
 }
 
-void	Response::_GetContentType(std::string request)
+/*
+ *	@brief	Gets the server from which request is done.
+ *	@param	servers	The vector's list of servers.
+ *	@param	request	The request.
+ *	@return	The corresponding server.
+*/
+Server	Response::_GetServer(std::vector<Server> &servers, std::string request)
 {
-	size_t		start = request.find("Accept:") + 8;
-	size_t		end = request.find(";", start) - 1;
+	Server	server = servers[0];
+	int 	port = _GetPort(request);
+
+	for (size_t i = 0 ; i < servers.size() ; i++)
+	{
+		if (servers[i].getPort() == port)
+		{
+			server = servers[i];
+			break ;
+		}
+	}
+
+	return (server);
+}
+
+/*
+ *	@brief	Gets the port of the server from which request is done.
+ *	@param	request	The request.
+ *	@return	The server's port.
+*/
+std::string	Response::_GetPath(Server &server, std::string subPath)
+{
+	std::string	root = server.getRoot();
+	if (root[root.length() - 1] == '/')
+		root.erase(root.length() - 1, 1);
+
+	std::string	path = root + subPath;
+	if (!subPath.compare("/"))
+		path = root + "/" + server.getIndex();
+
+	return (path);
+}
+
+/*
+ *	@brief	Gets the port of the server from which request is done.
+ *	@param	request	The request.
+ *	@return	The server's port.
+*/
+int	Response::_GetPort(std::string request)
+{
+	std::string	port;
+	size_t		start = request.find("Host:") + 6;
+	size_t		end = request.find("\n", start) - 1;
 	std::string	line = request.substr(start, end - start);
 
-	std::vector<std::string>	types = Parser::SplitStr(line, ",");
-	for (std::vector<std::string>::iterator it = types.begin() ; it != types.end() ; it++)
-		std::cout << "\n TYPE: " << *it << std::endl;
+	port = line.substr(line.find(":") + 1);
 
+	return (Utils::StrToInt(port));
+}
+
+/*
+ *	@brief	Gets the header's content type from a request.
+ *	@param	request	The request.
+ *	@return	The content type.
+*/
+std::string	Response::_GetContentType(std::string request, std::string path)
+{
+	if (!path.compare(path.length() - 12, 12, "/favicon.ico"))
+		return ("image/x-icon");
+
+	std::string					contentType;
+
+	size_t						start = request.find("Accept:") + 8;
+	size_t						end = request.find(";", start) - 1;
+	std::string					line = request.substr(start, end - start);
+	std::vector<std::string>	types = Parser::SplitStr(line, ",");
+
+	if (path.find(".") == std::string::npos)
+		return ("text/plain");
+
+	std::string					ext = path.substr(path.find(".") + 1);
+
+	for (std::vector<std::string>::iterator it = types.begin() ; it != types.end() ; it++)
+	{
+		std::vector<std::string>	type = Parser::SplitStr(*it, "/");
+		if (!type[1].compare(ext))
+		{
+			contentType = *it;
+			break ;
+		}
+		else if (!type[1].compare("*"))
+		{
+			contentType = type[0] + ext;
+			break ;
+		}
+	}
+
+	std::cout << "CONTENT TYPE = " << contentType << std::endl;
+
+	return (contentType);
 }
 
 void	Response::_WritePage(int fd, std::string path, std::string type, std::string status)
@@ -88,7 +170,6 @@ void	Response::_WritePage(int fd, std::string path, std::string type, std::strin
 	write(fd, text.c_str(), text.length());
 
 	text = "Response send:\n" + text;
-	Logger::info(content.c_str());
 }
 
 int	Response::BadRequest400(int fd, std::string path)

@@ -214,7 +214,7 @@ void	Parser::_ParseServer(std::vector<std::string> &parameters, Server &server)
 		if (parameter.find("listen") != std::string::npos)
 		{
 			parameter.erase(0, 7);
-			server.setPort(Utils::StrToint(parameter));
+			server.setPort(Utils::StrToInt(parameter));
 		}
 		else if (parameter.find("server_name") != std::string::npos)
 		{

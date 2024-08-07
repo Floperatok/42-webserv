@@ -247,7 +247,7 @@ void	Master::_manageClientsRequests(void)
 			oss.clear();
 			oss << "Sending response to socket_fd " << _fds[i].fd << "...";
 			Logger::debug(oss.str().c_str());
-			Response::sendResponse(_servers, _fds[i].fd, request);
+			Response::SendResponse(_servers, _fds[i].fd, request);
 		}
 	}
 }

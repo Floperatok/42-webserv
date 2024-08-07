@@ -27,8 +27,11 @@ private:
 	Response &operator=(const Response &other);
 
 	// Methods
-	static void	_WritePage(int fd, std::string path, std::string type, std::string status);
-	static void	_GetContentType(std::string request);
+	static void			_WritePage(int fd, std::string path, std::string type, std::string status);
+	static Server		_GetServer(std::vector<Server> &servers, std::string request);
+	static std::string	_GetPath(Server &server, std::string subPath);
+	static int			_GetPort(std::string request);
+	static std::string	_GetContentType(std::string request, std::string path);
 public:
 	// Constructors
 	~Response(void);

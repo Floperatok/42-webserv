@@ -25,7 +25,7 @@ Utils &Utils::operator=(const Utils &rhs)
  *	@param str The string to convert.
  *	@return The converted integer.
 */
-int	Utils::StrToint(const std::string &str)
+int	Utils::StrToInt(const std::string &str)
 {
 	std::stringstream	ss;
 	int					res = 0;
