@@ -43,8 +43,8 @@ void	Response::SendResponse(Server &server, int fd, std::string request)
 	std::string					method = req[0];
 
 	std::string					root = server.getRoot();
-	// if (root[root.length() - 1] == '/')
-	// 	root.erase(root.length() - 1, 1);
+	if (root[root.length() - 1] == '/')
+		root.erase(root.length() - 1, 1);
 
 	std::cout << "ROOT = '" << server.getRoot() << "'" << std::endl;
 
