@@ -11,12 +11,13 @@ SRCS			=	main.cpp \
 				Server/Location.cpp \
 				Response/Response.cpp \
 				Parser/CheckConfig.cpp \
-				Parser/Parser.cpp
+				Parser/Parser.cpp \
+				Cgi/Cgi.cpp
 
 OBJ_PATH	=	objs/
 OBJS		=	$(addprefix $(OBJ_PATH), $(SRCS:.cpp=.o))
 
-INCLUDES	=	-I Utils/ -I Logs/ -I Master/ -I Server/ -I Response -I Parser
+INCLUDES	=	-I Utils/ -I Logs/ -I Master/ -I Server/ -I Response/ -I Parser/ -I Cgi/
 
 all:	$(NAME)
 

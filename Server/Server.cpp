@@ -154,7 +154,7 @@ void	Server::setup(void)
 	if (listen(_sockfd, 512) < 0)
 		throw (Logger::FunctionError("listen", errno));
 	Logger::debug("Setting up socket in non-blocking mode");
-	if (fcntl(_sockfd, F_SETFL, O_NONBLOCK) < 0)
+	if (fcntl(_sockfd, F_SETFL, O_NONBLOCK, FD_CLOEXEC) < 0)
 		throw (Logger::FunctionError("fcntl", errno));
 }
 
