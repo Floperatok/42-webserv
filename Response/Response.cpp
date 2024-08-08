@@ -2,11 +2,9 @@
 #include "Response.hpp"
 
 
-/* ########## Constructor ########## */
+/* ########## Constructors ########## */
 
-Response::Response(void)
-{
-}
+Response::Response(void) {}
 
 Response::Response(const Response &copy)
 {
@@ -14,9 +12,7 @@ Response::Response(const Response &copy)
 		*this = copy;
 }
 
-Response::~Response(void)
-{
-}
+Response::~Response(void) {}
 
 
 /* ########## Operator overload ########## */
@@ -24,47 +20,62 @@ Response::~Response(void)
 Response &Response::operator=(const Response &other)
 {
 	if (&other != this)
-	{
-		
-	}
+		*this = other;
 	return (*this);
 }
 
 
-/* ########## Setter/Getter ########## */
+/* ########## Setters and getters ########## */
 
 
-/* ########## Member function ########## */
+
+
+/* ########## Member functions ########## */
+
+/*
+ *	@brief	Sends response to the appropriate server according to the client's request.
+ *	@param	servers	The vector's list of servers.
+ *	@param	fd The socket's file descriptor.
+ *	@param	request	The request.
+ *	@return	The status code of the response sent.
+*/
 int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string request)
 {
 	std::string					line = request.substr(0, request.find('\n'));
 	std::vector<std::string>	req = Parser::SplitStr(line, " ");
 	std::string					method = req[0];
 	Server						server = _GetServer(servers, request);
-
 	std::string					path = _GetPath(server, req[1]);
+	Location					location = _GetLocation(server, path);
 
-	if (method == "GET")
+	if (!_CheckAutoIndex(server, location))
+		return (Forbidden403(fd));
+
+	if (method == "GET" && _IsMethodAllowed(method, location))
 	{
 		std::string	type = _GetContentType(request, path);
 		return (_WritePage(fd, path, type, "200 OK"));
 	}
-	// else if (method == "POST")
-	// {
+	else if (method == "POST" && _IsMethodAllowed(method, location))
+	{
 
-	// }
-	// else if (method == "PUT")
-	// {
+	}
+	else if (method == "PUT" && _IsMethodAllowed(method, location))
+	{
 
-	// }
-	// else if (method == "DELETE")
-	// {
+	}
+	else if (method == "HEAD" && _IsMethodAllowed(method, location))
+	{
 
-	// }
-	// else if (method == "OPTIONS")
-	// {
+	}
+	else if (method == "DELETE" && _IsMethodAllowed(method, location))
+	{
 
-	// }
+	}
+	else if (method == "OPTIONS" && _IsMethodAllowed(method, location))
+	{
+
+	}
 	else
 		return (MethodNotAllowed405(fd));
 	return (200);
@@ -152,6 +163,8 @@ std::string	Response::_GetContentType(std::string request, std::string path)
 	std::string					ext = path.substr(path.find(".") + 1);
 	if (ext == "jpg")
 				ext = "jpeg";
+	else if (ext == "js")
+		ext = "javascript";
 	
 	for (std::vector<std::string>::iterator it = types.begin() ; it != types.end() ; it++)
 	{
@@ -171,6 +184,80 @@ std::string	Response::_GetContentType(std::string request, std::string path)
 	std::cout << "CONTENT TYPE = " << contentType << std::endl;
 
 	return (contentType);
+}
+
+/*
+ *	@brief	Gets the appropriate server's location according to the request's path.
+ *	@param	server The server.
+ *	@param	path The request's path.
+ *	@return	The current location.
+*/
+Location		Response::_GetLocation(Server &server, std::string path)
+{
+	Location	location;
+
+	std::vector<Location>		locations = server.getLocations();
+	for (std::vector<Location>::iterator it = locations.begin() ; it != locations.end() ; it++)
+		if (path.find((*it).getLocation()) != std::string::npos \
+			&& (*it).getLocation().size() > location.getLocation().size())
+			location = *it;
+	
+	return (location);
+}
+
+/*
+ *	@brief	Checks if a method is allowed in a given location.
+ *	@param	method	The method to check.
+ *	@param	location	The location.
+ *	@return	TRUE if the method is allowed, FALSE if not.
+*/
+bool	Response::_IsMethodAllowed(std::string method, Location &location)
+{
+	if (location.getLocation() == "")
+		return (true);
+	
+	std::vector<std::string>	allowedMethods = location.getAllowMethods();
+	if (allowedMethods.size() == 0)
+		return (true);
+
+	for (std::vector<std::string>::iterator it = allowedMethods.begin() ; it != allowedMethods.end() ; it++)
+		if (*it == method)
+			return (true);
+	
+	return (false);
+}
+
+/*
+ *	@brief	Checks if a method is allowed in a given location.
+ *	@param	method	The method to check.
+ *	@param	location	The location.
+ *	@return	TRUE if the method is allowed, FALSE if not.
+*/
+bool	Response::_CheckAutoIndex(Server &server, Location &location)
+{
+	bool	autoIndex = location.getAutoIndex();
+
+	if (autoIndex == true)
+			return (true);
+
+	std::string	index = "/index.html";
+	if (location.getIndex().size() > 0)
+		index = location.getIndex();
+	
+	std::string	path = location.getLocation();
+	if (index[0] != '/')
+		index = "/" + index;
+	if (path[path.size() - 1] == '/')
+			path.erase(path.size() - 1);
+	
+	std::string	root = server.getRoot();
+	if (root[root.length() - 1] == '/')
+		root.erase(root.length() - 1, 1);
+
+	std::ifstream	file((root + path + index).c_str());
+	if (!file.good())
+		return (false);
+	return (true);
 }
 
 /*

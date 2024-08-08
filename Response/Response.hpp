@@ -32,6 +32,9 @@ private:
 	static std::string	_GetPath(Server &server, std::string subPath);
 	static int			_GetPort(std::string request);
 	static std::string	_GetContentType(std::string request, std::string path);
+	static Location		_GetLocation(Server &server, std::string path);
+	static bool			_IsMethodAllowed(std::string method, Location &location);
+	static bool			_CheckAutoIndex(Server &server, Location &location);
 public:
 	// Constructors
 	~Response(void);

@@ -1,17 +1,37 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<meta http-equiv="content-type" content="text/html; charset=UTF-8">
-		<title>Error 500</title>
-		<link href="error_pages/error_pages.css" rel="stylesheet" type="text/css">
-	</head>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Error 500</title>
+	<link rel="stylesheet" href="../style.css">
+	<link rel="stylesheet" href="error_pages/error_pages.css">
+</head>
+<body>
+	<header>
+		<nav>
+			<ul>
+				<li><a href="../index.html">Home</a></li>
+				<li><a href="../post.html">Test POST</a></li>
+				<li><a href="../put.html">Test PUT</a></li>
+				<li><a href="../delete.html">Test DELETE</a></li>
+				<li><a href="../options.html">Test OPTIONS</a></li>
+				<li><a href="../nonexistent.html">Test 404</a></li>
+			</ul>
+		</nav>
+	</header>
 
-	<body>
-		<div id="general">
+	<main class="error-container">
+		<div id="error-general">
 			<div>Error 500</div>
 			<div class="txt">
-				<p><span class="blink">Internal server error</span></p>
+				<p><span class="blink">Internal Server Error</span></p>
 			</div>
 		</div>
-	</body>
+	</main>
+
+	<footer>
+		<p>&copy; 2024, by drenassi and nsalles.</p>
+	</footer>
+</body>
 </html>

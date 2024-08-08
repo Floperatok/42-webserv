@@ -1,7 +1,7 @@
 #include "Location.hpp"
 
 /* ########## Constructors ########## */
-Location::Location() : _location("/"), _root(""), _index(""), _autoIndex(false) {}
+Location::Location() : _location(""), _root(""), _index(""), _autoIndex(false) {}
 
 Location::Location(const Location &toCopy)
 {

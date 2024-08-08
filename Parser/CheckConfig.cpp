@@ -160,8 +160,6 @@ void CheckConfig::_CheckKeywords(std::string &content)
 			throw (MissingParameterException("Port not found."));
 		if (serverContent.find("host") == std::string::npos)
 			throw (MissingParameterException("Host not found."));
-		if (serverContent.find("location") == std::string::npos)
-			throw (MissingParameterException("No location found."));
 
 		
 		parameters = Parser::SplitStr(serverContent, ";{}");
