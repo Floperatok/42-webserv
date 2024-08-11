@@ -65,7 +65,7 @@ void	Logger::warning(const char *msg, int tagColor, int textColor)
 
 void	Logger::error(const char *msg, int tagColor, int textColor)
 {
-	std::cout 	<< "\033[" << tagColor << ";1m" << "Error\t" 
+	std::cerr 	<< "\033[" << tagColor << ";1m" << "Error\t" 
 				<< "\033[" << RESET << "m" << " |\t"
 				<< "\033[" << textColor << "m" << msg
 				<< "\033[" << RESET << "m" << std::endl;

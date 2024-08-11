@@ -9,6 +9,7 @@
 // STANDARD LIBRARIES
 # include <cstdlib>
 # include <unistd.h>
+# include <sys/wait.h>
 # include <cctype>
 
 // STRINGS

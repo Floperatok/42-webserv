@@ -6,6 +6,7 @@
 # include "Server.hpp"
 # include "Response.hpp"
 # include "Logger.hpp"
+# include "Cgi.hpp"
 
 
 class Master
