@@ -38,6 +38,8 @@ void CheckConfig::CheckConfigFile(const std::string &path)
 	while (std::getline(file, line))
 		content += line + '\n';
 
+	file.close();
+
 	if (content.empty() || !content.length())
 		throw (EmptyFileException());
 

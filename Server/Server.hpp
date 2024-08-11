@@ -52,7 +52,7 @@ public:
 	const std::vector<Location>	&getLocations() const;
 
 	// Methods
-	void	setup(void);
+	bool	setup(void);
 	void	printServerAttributes() const;
 };
 

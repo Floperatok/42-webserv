@@ -16,6 +16,8 @@ SRCS			=	main.cpp \
 OBJ_PATH	=	objs/
 OBJS		=	$(addprefix $(OBJ_PATH), $(SRCS:.cpp=.o))
 
+UPLOADED_FILES = www/uploads/*
+
 INCLUDES	=	-I Utils/ -I Logs/ -I Master/ -I Server/ -I Response -I Parser
 
 all:	$(NAME)
@@ -29,9 +31,9 @@ $(OBJ_PATH)%.o:	%.cpp
 
 clean:
 	rm -rf $(OBJ_PATH)
+	rm -rf $(UPLOADED_FILES)
 
-fclean:
-	rm -rf $(OBJ_PATH)
+fclean: clean
 	rm -f $(NAME)
 
 re: fclean all

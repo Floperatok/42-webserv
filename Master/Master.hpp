@@ -26,6 +26,8 @@ private:
 	void		_sendResponse(Server &server, const int sockfd, const std::string &request);
 	void		_checkServersConnections(void);
 	void		_manageClientsRequests(void);
+	void		_RemoveFd(unsigned int index);
+	bool		_isKeepAlive(const std::string &request);
 	// debug
 	void		_displayInfos(void) const;
 public:

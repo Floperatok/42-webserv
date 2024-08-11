@@ -49,4 +49,3 @@ std::string	Utils::IntToStr(int n)
 
 	return (ss.str());
 }
-

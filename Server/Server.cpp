@@ -18,6 +18,8 @@ Server::Server(const Server &copy)
 
 Server::~Server(void)
 {
+	if (_sockfd != -1)
+		close(_sockfd);
 }
 
 
@@ -131,31 +133,49 @@ void	Server::printServerAttributes() const
 	Logger::debug("");
 }
 
-void	Server::setup(void)
+bool	Server::setup(void)
 {
-	Logger::debug("Creating socket");
+	Logger::debug("Creating socket.");
 	if ((_sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-		throw (Logger::FunctionError("socket", errno));
+	{
+		Logger::error("Failed to create socket.");
+		return (false);
+	}
 	
 	_setupServAddr();
 	
 	int option_value = 1;
     if (setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, 
 		&option_value, sizeof(int)) < 0)
-		throw (Logger::FunctionError("setsockopt", errno));
+	{
+		Logger::error("Failed to set socket options.");
+		return (false);
+	}
 	
 	std::ostringstream oss;
-	oss << "Binding socket at port " << _port;
+	oss << "Binding socket at port " << _port << ".";
 	Logger::debug(oss.str().c_str());
 	if (bind(_sockfd, (struct sockaddr *) &_servaddr, sizeof(_servaddr)) < 0)
-		throw (Logger::FunctionError("bind", errno));
+	{
+		Logger::error("Failed to bind socket.");
+		return (false);
+	}
 	
-	Logger::debug("Listen for connections");
+	Logger::debug("Listen for connections.");
 	if (listen(_sockfd, 512) < 0)
-		throw (Logger::FunctionError("listen", errno));
-	Logger::debug("Setting up socket in non-blocking mode");
+	{
+		Logger::error("Failed to listen on socket.");
+		return (false);
+	}
+	
+	Logger::debug("Setting up socket in non-blocking mode.");
 	if (fcntl(_sockfd, F_SETFL, O_NONBLOCK) < 0)
-		throw (Logger::FunctionError("fcntl", errno));
+	{
+		Logger::error("Failed to set socket to non-blocking mode.");
+		return false;
+	}
+	
+	return (true);
 }
 
 

@@ -59,7 +59,12 @@ void	Master::setupServers(void)
 		std::ostringstream oss;
 		oss << "Setting up server at port " << it->getPort();
 		Logger::info(oss.str().c_str());
-		it->setup();
+		
+		if (!it->setup())
+		{
+			Logger::error("Server setup failed.");
+            Response::InternalServerError500(it->getSockfd());
+		}
 	}
 	_nbServers = _servers.size();
 }
@@ -72,6 +77,11 @@ void	Master::_initFds(void)
 	{
 		if (i < _servers.size())
 		{
+			if (_servers[i].getSockfd() < 0)
+			{
+				Logger::error(("Invalid server socket file descriptor: " + Utils::IntToStr(_servers[i].getSockfd())).c_str());
+                continue;
+			}
 			_fds[i].fd = _servers[i].getSockfd();
 			_fds[i].events = POLLIN;
 			_fds[i].revents = 0;
@@ -92,14 +102,18 @@ void	Master::_storeFd(int fd, const short events)
 	oss << "Storing client socket_fd " << fd << " in the fds array";
 	Logger::debug(oss.str().c_str());
 	if (fd < 0)
+	{
+		Logger::error(("Attempted to store an invalid file descriptor: " + Utils::IntToStr(fd)).c_str());
 		return ;
+	}
 	int i = 0;
 	while (i < MAX_CLIENT && _fds[i].fd != -1)
 		i++;
 	if (i == MAX_CLIENT)
 	{
 		Response::ServiceUnavailable503(fd);
-		close(fd);
+		_RemoveFd(i);
+		Logger::error("Max client limit reached, connection closed.");
 	}
 	_fds[i].fd = fd;
 	_fds[i].events = events;
@@ -142,6 +156,7 @@ int	Master::_createClientSocket(Server &server)
 		oss << "Failed to accept to connect the socket binded to the port " 
 			<< server.getPort() << " with error: " << strerror(errno);
 		Logger::warning(oss.str().c_str());
+		Response::ServiceUnavailable503(server.getSockfd());
 		return (-1);
 	}
 	std::ostringstream oss;
@@ -157,37 +172,56 @@ int	Master::_createClientSocket(Server &server)
 */
 int Master::_readSocket(const int sockfd, std::string &receivedData)
 {
-    char buffer[BUFFER_SIZE];
-    int bytesread;
+    char			buffer[BUFFER_SIZE];
+    ssize_t			bytesread;
+	size_t			totalBytesRead = 0;
+	size_t			contentLength = 0;
+	bool			headersReceived = false;
 
-    while (1) 
+    while (true)
 	{
         bytesread = recv(sockfd, buffer, BUFFER_SIZE, MSG_DONTWAIT);
         if (bytesread < 0)
-            throw Logger::FunctionError("recv", errno);
+		{
+			Logger::error(("Failed to read from socket" + Utils::IntToStr(sockfd) + ".").c_str());
+            Response::ServiceUnavailable503(sockfd);
+			return (0);
+		}
 
         if (bytesread == 0) 
 		{
-			std::ostringstream oss;
-			oss << "Connection of the socket " << sockfd << " closed.";
-			Logger::info(oss.str().c_str());
+			Logger::info(("Connection of the socket " + Utils::IntToStr(sockfd) + " closed.").c_str());
 		    return (0);
         }
-
+		buffer[bytesread] = '\0';
         receivedData.append(buffer, bytesread);
+		totalBytesRead += bytesread;
+		size_t headersEndPos = receivedData.find("\r\n\r\n");
 
-        if (receivedData.size() >= 4 && receivedData.compare(receivedData.size() - 4, 4, "\r\n\r\n") == 0) 
-		{
-            std::ostringstream oss;
-            oss << "Request received from socket " << sockfd;
-            Logger::info(oss.str().c_str());
+		if (!headersReceived && headersEndPos != std::string::npos)
+        {
+			headersReceived = true;
 
-            oss.str("");
-            oss.clear();
-            oss << "Received request: \n\"" << receivedData << "\"";
-            Logger::debug(oss.str().c_str());
+			size_t contentLengthPos = receivedData.find("Content-Length: ");
+			if (contentLengthPos != std::string::npos)
+			{
+				size_t contentLengthStart = contentLengthPos + 16;
+				size_t contentLengthEnd = receivedData.find("\r\n", contentLengthStart);
+				contentLength = Utils::StrToInt(receivedData.substr(contentLengthStart, contentLengthEnd - contentLengthStart));
+			}
+        }
+		if (headersReceived && receivedData.size() >= headersEndPos + 4 + contentLength)
+        {
+			Logger::info(("Request received from socket " + Utils::IntToStr(sockfd) + ".").c_str());
+			Logger::debug(("Received request:\n'" + receivedData + "'").c_str());
 
-            return (1);
+			return (1);
+        }
+		else if (totalBytesRead >= MAX_REQUEST_SIZE)
+        {
+            Logger::error("Request size exceeds the maximum limit.");
+			Response::ContentTooLarge413(sockfd);
+            return (0);
         }
     }
 }
@@ -210,7 +244,10 @@ void	Master::_checkServersConnections(void)
 
 			int clientSocket = _createClientSocket(_servers[i]);
 			if ((clientSocket < 0))
+			{
+				Logger::error("Failed to create a client socket.");
 				continue ;
+			}
 			_storeFd(clientSocket, POLLIN);
 		}
 	}
@@ -222,11 +259,15 @@ void	Master::_manageClientsRequests(void)
 	{
 		if (_fds[i].revents == 0)
 			continue ;
-		else if (_fds[i].revents & POLLERR)
+		
+		if (_fds[i].revents & POLLERR)
 		{
 			std::ostringstream oss;
 			oss << "socket " << _fds[i].fd << " has POLLERR in revents. revents is " << _fds[i].revents << std::endl;
 			Logger::error(oss.str().c_str());
+			Response::BadGateway502(_fds[i].fd);
+			_RemoveFd(i);
+			i--;
 		}
 		else if (_fds[i].revents & POLLIN)
 		{
@@ -237,9 +278,8 @@ void	Master::_manageClientsRequests(void)
 			std::string request("");
 			if (!_readSocket(_fds[i].fd, request))
 			{
-				close(_fds[i].fd);
-				_fds[i].fd = -1;
-				_nfds--;
+				_RemoveFd(i);
+				i--;
 				continue ;
 			}
 
@@ -247,7 +287,14 @@ void	Master::_manageClientsRequests(void)
 			oss.clear();
 			oss << "Sending response to socket_fd " << _fds[i].fd << "...";
 			Logger::debug(oss.str().c_str());
-			Response::SendResponse(_servers, _fds[i].fd, request);
+			int	statusCode = Response::SendResponse(_servers, _fds[i].fd, request);
+			if (statusCode != 200)
+			{
+				Logger::error(("Failed to send response to the client. Status code: " \
+								+ Utils::IntToStr(statusCode) + ".").c_str());
+				// _RemoveFd(i);
+				// i--;
+			}
 		}
 	}
 }
@@ -262,10 +309,13 @@ void	Master::runServers(void)
 		// _displayInfos(); // debug tool
 		int rc = poll(_fds, _nfds, -1);
 		if (rc < 0)
-			throw (Logger::FunctionError("poll", errno));
+		{
+			Logger::error("Poll error.");
+			continue ;
+		}
 		if (rc == 0)
 		{
-			Logger::warning("poll timed out");
+			Logger::warning("Poll timed out.");
 			continue ;
 		}
 		_checkServersConnections();
@@ -285,6 +335,35 @@ void	Master::_displayInfos(void) const
 	for (size_t i = _nbServers; i < _nfds; i++)
 		std::cout << "\tfds[" << i << "] = " << _fds[i].fd << " (client)" << std::endl;
 	
+}
+
+void Master::_RemoveFd(unsigned int index)
+{
+	if (index >= _nfds || _fds[index].fd == -1)
+		return ;
+	
+	close(_fds[index].fd);
+
+	for (unsigned int i = index; i < _nfds - 1; i++)
+		_fds[i] = _fds[i + 1];
+
+	_fds[_nfds - 1].fd = -1;
+	_fds[_nfds - 1].events = 0;
+	_fds[_nfds - 1].revents = 0;
+	_nfds--;
+}
+
+bool Master::_isKeepAlive(const std::string &request)
+{
+    std::string::size_type pos = request.find("Connection: ");
+
+    if (pos != std::string::npos)
+    {
+        size_t end = request.find("\r\n", pos);
+        std::string connectionValue = request.substr(pos + 12, end - (pos + 12));
+        return (connectionValue == "keep-alive");
+    }
+    return (false);
 }
 
 
