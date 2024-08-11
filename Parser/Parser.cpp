@@ -105,7 +105,7 @@ std::vector<std::string> Parser::SplitStr(std::string &str, const char *charset)
 */
 void Parser::TrimStr(std::string &str, const char *charset)
 {
-	size_t		i = 0;
+	int		i = 0;
 	std::string	set = charset;
 
 	if (str.length() == 0 || str.find_first_of(charset) == std::string::npos)
@@ -117,7 +117,7 @@ void Parser::TrimStr(std::string &str, const char *charset)
 
 	size_t		len = str.length() - 1;
 	i = len;
-	while (set.find_last_of(str[i]) != std::string::npos)
+	while (i >= 0 && set.find_last_of(str[i]) != std::string::npos)
 		i--;
 	str.erase(i + 1, len - i);
 }
@@ -321,7 +321,10 @@ void	Parser::_ParseLocations(std::vector<std::string> &parameters, Server &serve
 					location.setCgiExt(Parser::SplitStr(parameter, " "));
 				}
 
-				parameter = *(++it);
+				if (it + 1 != parameters.end())
+					parameter = *(++it);
+				else
+					break ;
 			}
 			locations.push_back(location);
 			--it;
