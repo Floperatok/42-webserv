@@ -290,16 +290,16 @@ std::string	Response::_GetContentType(const std::string &request, const std::str
 
 	size_t						start = request.find("Accept:") + 8;
 	size_t						end = request.find(";", start) - 1;
-	std::string					line = request.substr(start, end - start);
+	std::string					line = request.substr(start, end - start + 1);
 	std::vector<std::string>	types = Parser::SplitStr(line, ",");
-
 
 	std::string					ext = path.substr(path.find(".") + 1);
 	if (ext == "jpg")
-				ext = "jpeg";
+		ext = "jpeg";
 	else if (ext == "js")
 		ext = "javascript";
 	
+
 	for (std::vector<std::string>::iterator it = types.begin() ; it != types.end() ; it++)
 	{
 		std::vector<std::string>	type = Parser::SplitStr(*it, "/");
