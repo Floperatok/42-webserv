@@ -18,8 +18,8 @@ Server::Server(const Server &copy)
 
 Server::~Server(void)
 {
-	if (_sockfd != -1)
-		close(_sockfd);
+	// if (_sockfd != -1)
+		// close(_sockfd);
 }
 
 
