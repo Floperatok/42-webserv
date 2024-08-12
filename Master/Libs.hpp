@@ -10,7 +10,9 @@
 # include <cstdlib>
 # include <unistd.h>
 # include <sys/wait.h>
+# include <sys/stat.h>
 # include <cctype>
+# include <dirent.h>
 
 // STRINGS
 # include <string>

@@ -52,14 +52,9 @@ int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string req
 		return (Forbidden403(fd));
 
 	if (method == "GET" && _IsMethodAllowed(method, location))
-	{
-		std::string	type = _GetContentType(request, path);
-		return (_WritePage(fd, path, type, "200 OK"));
-	}
-	else if (method == "POST" && _IsMethodAllowed(method, location))
-	{
+		return (_WritePage(fd, path, _GetContentType(request, path), "200 OK"));
+	else if (method == "POST" && _IsMethodAllowed(method, location) && _GetMethod(request) == "")
 		return (_HandlePost(fd, request, server.getRoot()));
-	}
 	else if (method == "PUT" && _IsMethodAllowed(method, location))
 	{
 
@@ -68,10 +63,8 @@ int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string req
 	{
 
 	}
-	else if (method == "DELETE" && _IsMethodAllowed(method, location))
-	{
-
-	}
+	else if (method == "POST" && _GetMethod(request) == "DELETE" && _IsMethodAllowed("DELETE", location))
+		return (_HandleDelete(fd, request, server.getRoot()));
 	else if (method == "OPTIONS" && _IsMethodAllowed(method, location))
 	{
 
@@ -87,16 +80,19 @@ int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string req
  *	@param	path The path of the ressource we want to access to.
  *	@param	type The content-type.
  *	@param	status The string-formated status code.
- *	@param	closeConnection	(bool) Specifies if the connection must be closed (default: false).
+ *	@param	recursed	(bool) Parameter to indicate if we are in a loop (default: false).
  *	@return	The status code.
 */
-int	Response::_WritePage(int fd, const std::string &path, const std::string &type, const std::string &status)
+int	Response::_WritePage(int fd, const std::string &path, const std::string &type, \
+						const std::string &status, bool recursed)
 {
 	std::ifstream		file(path.c_str(), std::ios::in | std::ios::binary);
 
 	if (!file.is_open())
 	{
 		Logger::error(("Can't open file '" + path + "'.").c_str());
+		if (recursed)
+			return (-1);
 		return (NotFound404(fd));
 	}
 	
@@ -110,6 +106,8 @@ int	Response::_WritePage(int fd, const std::string &path, const std::string &typ
 	if (send(fd, header.c_str(), header.size(), MSG_NOSIGNAL) < 0)
 	{
 		Logger::error("Failed to write header.");
+		if (recursed)
+			return (-1);
 		return (InternalServerError500(fd));
 	}
 
@@ -117,11 +115,15 @@ int	Response::_WritePage(int fd, const std::string &path, const std::string &typ
 	if (bytesWritten < 0)
 	{
 		Logger::error("Failed to write content.");
+		if (recursed)
+			return (-1);
 		return (InternalServerError500(fd));
 	}
 	else if (static_cast<size_t>(bytesWritten) != content.size())
 	{
 		Logger::error("Incomplete content written.");
+		if (recursed)
+			return (-1);
 		return InternalServerError500(fd);
 	}
 
@@ -148,7 +150,7 @@ int Response::_HandlePost(int fd, const std::string &request, const std::string 
 
 	if (boundary.empty() || filename.empty() || fileData.empty())
 		return (InternalServerError500(fd));
-
+	
     std::ofstream	outFile(uploadPath.c_str(), std::ios::binary);
     if (!outFile)
 	{
@@ -158,6 +160,8 @@ int Response::_HandlePost(int fd, const std::string &request, const std::string 
     
     outFile.write(fileData.c_str(), fileData.size());
     outFile.close();
+
+	_UpdateUploadsPage(root);
     
 	_WritePage(fd, "www/file_uploaded.html", "text/html", "200 OK");
     
@@ -214,6 +218,116 @@ std::string Response::_ExtractFileData(const std::string &body, const std::strin
     return (body.substr(start, end - start));
 }
 
+/*
+ *	@brief	Generates an uploads.html page with links to uploaded files.
+ *	@param	root	The website's root.
+ *	@return	The resulted file's content.
+*/
+std::string	Response::_GenerateUploadsPage(const std::string &root)
+{
+	std::string uploadDir = root + "uploads/";
+	std::string pageContent = "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n";
+	pageContent += "<meta charset=\"UTF-8\">\n";
+	pageContent += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
+	pageContent += "<title>Uploads</title>\n<link rel=\"stylesheet\" href=\"style.css\">\n</head>\n<body>\n";
+	pageContent += "<header>\n<nav>\n<ul>\n";
+	pageContent += "<li><a href=\"index.html\">Home</a></li>\n";
+	pageContent += "<li><a href=\"post.html\">Upload a file</a></li>\n";
+	pageContent += "<li><a href=\"options.html\">OPTIONS</a></li>\n";
+	pageContent += "<li><a href=\"nonexistent.html\">Error 404</a></li>\n";
+	pageContent += "</ul>\n</nav>\n</header>\n<main>\n";
+	pageContent += "<h1>Uploaded Files</h1>\n<ul>\n";
+
+	DIR *dir = opendir(uploadDir.c_str());
+	if (!dir)
+		pageContent += "<li>Unable to open uploads directory.</li>\n";
+	else
+	{
+		struct dirent *entry;
+		while ((entry = readdir(dir)))
+			if (entry->d_type == DT_REG)
+			{
+				std::string	fileName = entry->d_name;
+				pageContent += "<li>";
+				pageContent += "<a href=\"uploads/" + fileName + "\" class=\"uploaded-files-link\">" + fileName + "</a>";
+				pageContent += " <form action=\"/delete_test\" method=\"POST\" style=\"display:inline;\">";
+				pageContent += "<input type=\"hidden\" name=\"_method\" value=\"DELETE\">";
+				pageContent += "<input type=\"hidden\" name=\"filePath\" value=\"" + fileName + "\">";
+				pageContent += "<input type=\"submit\" value=\"Delete\" style=\"background-color:#e74c3c;color:#fff;border:none;padding:5px 10px;cursor:pointer;\">";
+				pageContent += "</form>";
+				pageContent += "</li>\n";
+			}
+		closedir(dir);
+	}
+
+	pageContent += "</ul>\n</main>\n<footer>\n<p>&copy; 2024, by drenassi and nsalles.</p>\n";
+	pageContent += "</footer>\n</body>\n</html>";
+
+	return pageContent;
+}
+
+/*
+ *	@brief Update uploads.html page.
+ *	@param root The website's root directory.
+*/
+void	Response::_UpdateUploadsPage(const std::string &root)
+{
+	std::string		uploadsPageContent = _GenerateUploadsPage(root);
+	std::ofstream	uploadsFile((root + "uploads.html").c_str());
+
+	if (uploadsFile.is_open())
+	{
+		uploadsFile << uploadsPageContent;
+		uploadsFile.close();
+	}
+	else
+		Logger::error("Failed to update uploads.html.");
+}
+
+/*
+ *	@brief Deletes a file from uploaded files.
+ *	@param fd The socket's file descriptor.
+ *	@param request The request.
+ *	@param root The website's root directory.
+ *	@return	200 in case of success.
+ *	@return 500 in case of error.
+*/
+int Response::_HandleDelete(int fd, const std::string &request, const std::string &root)
+{
+    std::string path = root + "uploads/" + _GetFilePathToDelete(request);
+
+    if (std::remove(path.c_str()))
+    {
+        Logger::error(("Failed to delete file: " + path).c_str());
+        return (InternalServerError500(fd));
+    }
+
+	_UpdateUploadsPage(root);
+
+    _WritePage(fd, "www/file_deleted.html", "text/html", "200 OK");
+
+    return (200);
+}
+
+/*
+ *	@brief Gets the path of a file to delete from a request with DELETE method.
+ *	@param request The request.
+ *	@return The path of the file to delete.
+*/
+std::string	Response::_GetFilePathToDelete(const std::string &request)
+{
+	std::string	pathToDelete;
+	size_t		start = request.find("_method=DELETE&filePath=") + 24;
+
+	if (start == std::string::npos)
+		return ("");
+
+	size_t		end = request.find("\r\n");
+
+	pathToDelete = request.substr(start, end - start);
+
+	return (pathToDelete);
+}
 
 /*
  *	@brief	Gets the server from which request is done.
@@ -298,7 +412,6 @@ std::string	Response::_GetContentType(const std::string &request, const std::str
 		ext = "jpeg";
 	else if (ext == "js")
 		ext = "javascript";
-	
 
 	for (std::vector<std::string>::iterator it = types.begin() ; it != types.end() ; it++)
 	{
@@ -393,6 +506,27 @@ bool	Response::_CheckAutoIndex(Server &server, Location &location)
 }
 
 /*
+ *	@brief	Gets the hidden method from a request.
+ *	@param	request	The request.
+ *	@return	The method, or an empty string if no hidden method was found.
+*/
+std::string	Response::_GetMethod(const std::string &request)
+{
+	std::string	method;
+	size_t		start = request.find("_method=");
+
+	if (start == std::string::npos)
+		return ("");
+
+	start += 8;
+
+	size_t		end = request.find("&", start);
+	method = request.substr(start, end - start);
+
+	return (method);
+}
+
+/*
  *	@brief	Displays the error 400 page.
  *	@param	fd	The socket's file descriptor.
  *	@param	path The path of the corresponding page (let blank to use the default page).
@@ -400,7 +534,7 @@ bool	Response::_CheckAutoIndex(Server &server, Location &location)
 */
 int	Response::BadRequest400(int fd, const std::string &path)
 {
-	if (_WritePage(fd, path, "text/html", "400 Bad Request") != 200)
+	if (_WritePage(fd, path, "text/html", "400 Bad Request", true) == -1)
 		Logger::error("Failed to send 400 response.");
 
 	return (400);
@@ -414,7 +548,7 @@ int	Response::BadRequest400(int fd, const std::string &path)
 */
 int	Response::Forbidden403(int fd, const std::string &path)
 {
-	if (_WritePage(fd, path, "text/html", "403 Forbidden") != 200)
+	if (_WritePage(fd, path, "text/html", "403 Forbidden", true) == -1)
 		Logger::error("Failed to send 403 response.");
 	
 	return (403);
@@ -428,7 +562,7 @@ int	Response::Forbidden403(int fd, const std::string &path)
 */
 int	Response::NotFound404(int fd, const std::string &path)
 {
-	if (_WritePage(fd, path, "text/html", "404 Not Found") != 200)
+	if (_WritePage(fd, path, "text/html", "404 Not Found", true) == -1)
 		Logger::error("Failed to send 404 response.");
 
 	return (404);
@@ -442,7 +576,7 @@ int	Response::NotFound404(int fd, const std::string &path)
 */
 int	Response::MethodNotAllowed405(int fd, const std::string &path)
 {
-	if (_WritePage(fd, path, "text/html", "405 Method Not Allowed") != 200)
+	if (_WritePage(fd, path, "text/html", "405 Method Not Allowed", true) == -1)
 		Logger::error("Failed to send 405 response.");
 
 	return (405);
@@ -456,7 +590,7 @@ int	Response::MethodNotAllowed405(int fd, const std::string &path)
 */
 int	Response::RequestTimeout408(int fd, const std::string &path)
 {
-	if (_WritePage(fd, path, "text/html", "408 Request Timeout") != 200)
+	if (_WritePage(fd, path, "text/html", "408 Request Timeout", true) == -1)
 		Logger::error("Failed to send 408 response.");
 
 	return (408);
@@ -470,7 +604,7 @@ int	Response::RequestTimeout408(int fd, const std::string &path)
 */
 int	Response::ContentTooLarge413(int fd, const std::string &path)
 {
-	if (_WritePage(fd, path, "text/html", "413 Content Too Large") != 200)
+	if (_WritePage(fd, path, "text/html", "413 Content Too Large", true) == -1)
 		Logger::error("Failed to send 413 response.");
 
 	return (413);
@@ -484,11 +618,10 @@ int	Response::ContentTooLarge413(int fd, const std::string &path)
 */
 int	Response::InternalServerError500(int fd, const std::string &path)
 {
-	// if (_WritePage(fd, path, "text/html", "500 Internal Server Error") != 200)
-		// Logger::error("Failed to send 500 response.");
+	if (_WritePage(fd, path, "text/html", "500 Internal Server Error", true) == -1)
+		Logger::error("Failed to send 500 response.");
 
-	(void)path;
-	(void)fd;
+	// Logger::error("Internal Server Error 500 called.");
 	return (500);
 }
 
@@ -500,7 +633,7 @@ int	Response::InternalServerError500(int fd, const std::string &path)
 */
 int	Response::MethodNotImplemented501(int fd, const std::string &path)
 {
-	if (_WritePage(fd, path, "text/html", "501 Not Implemented") != 200)
+	if (_WritePage(fd, path, "text/html", "501 Not Implemented", true) == -1)
 		Logger::error("Failed to send 501 response.");
 
 	return (501);
@@ -514,7 +647,7 @@ int	Response::MethodNotImplemented501(int fd, const std::string &path)
 */
 int	Response::BadGateway502(int fd, const std::string &path)
 {
-	if (_WritePage(fd, path, "text/html", "502 Bad Gateway") != 200)
+	if (_WritePage(fd, path, "text/html", "502 Bad Gateway", true) == -1)
 		Logger::error("Failed to send 502 response.");
 
 	return (502);
@@ -528,7 +661,7 @@ int	Response::BadGateway502(int fd, const std::string &path)
 */
 int	Response::ServiceUnavailable503(int fd, const std::string &path)
 {
-	if (_WritePage(fd, path, "text/html", "503 Service Unavailable") != 200)
+	if (_WritePage(fd, path, "text/html", "503 Service Unavailable", true) == -1)
 		Logger::error("Failed to send 503 response.");
 
 	return (503);
@@ -542,7 +675,7 @@ int	Response::ServiceUnavailable503(int fd, const std::string &path)
 */
 int	Response::GatewayTimeout504(int fd, const std::string &path)
 {
-	if (_WritePage(fd, path, "text/html", "504 Gateway Timeout") != 200)
+	if (_WritePage(fd, path, "text/html", "504 Gateway Timeout", true) == -1)
 		Logger::error("Failed to send 504 response.");
 
 	return (504);

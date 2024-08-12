@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test DELETE</title>
+    <title>File Deleted</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,22 +11,16 @@
         <nav>
             <ul>
                 <li><a href="index.html">Home</a></li>
-                <li><a href="post.html">POST</a></li>
-                <li><a href="put.html">PUT</a></li>
-                <li><a href="delete.html">DELETE</a></li>
+                <li><a href="post.html">Upload a file</a></li>
                 <li><a href="options.html">OPTIONS</a></li>
                 <li><a href="nonexistent.html">Error 404</a></li>
             </ul>
         </nav>
     </header>
     <main>
-        <h1>Test DELETE Request</h1>
-        <form action="/delete_test" method="POST">
-            <input type="hidden" name="_method" value="DELETE">
-            <label for="name">Name:</label>
-            <input type="text" id="name" name="name">
-            <input type="submit" value="Submit">
-        </form>
+        <h1>File Successfully Deleted!</h1>
+        <p>Your file has been successfully deleted from the server.</p>
+        <a href="uploads.html" class="uploaded-files-link">Back to Uploads</a>
     </main>
     <footer>
         <p>&copy; 2024, by drenassi and nsalles.</p>

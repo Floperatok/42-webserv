@@ -52,3 +52,16 @@ footer {
     font-size: 0.8rem;
     background-color: rgba(51, 51, 51, 0.8);
 }
+
+.uploaded-files-link {
+    color: #faf89d;
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-decoration: none;
+    margin-top: 20px;
+    display:inline-block;
+}
+
+.uploaded-files-link:hover {
+    color: #00ff40; /* Optionnel : couleur de survol */
+}
