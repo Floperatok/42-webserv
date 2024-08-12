@@ -107,13 +107,13 @@ int	Response::_WritePage(int fd, const std::string &path, const std::string &typ
 	std::string header = "HTTP/1.1 " + status + "\r\nContent-Type: " + type + "\r\nContent-Length: " \
 			+ Utils::IntToStr(content.size()) + "\r\n\r\n";
 
-	if (write(fd, header.c_str(), header.size()) < 0)
+	if (send(fd, header.c_str(), header.size(), MSG_NOSIGNAL) < 0)
 	{
 		Logger::error("Failed to write header.");
 		return (InternalServerError500(fd));
 	}
 
-	ssize_t bytesWritten = write(fd, content.data(), content.size());
+	ssize_t bytesWritten = send(fd, content.data(), content.size(), MSG_NOSIGNAL);
 	if (bytesWritten < 0)
 	{
 		Logger::error("Failed to write content.");
@@ -484,9 +484,11 @@ int	Response::ContentTooLarge413(int fd, const std::string &path)
 */
 int	Response::InternalServerError500(int fd, const std::string &path)
 {
-	if (_WritePage(fd, path, "text/html", "500 Internal Server Error") != 200)
-		Logger::error("Failed to send 500 response.");
+	// if (_WritePage(fd, path, "text/html", "500 Internal Server Error") != 200)
+		// Logger::error("Failed to send 500 response.");
 
+	(void)path;
+	(void)fd;
 	return (500);
 }
 

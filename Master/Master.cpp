@@ -183,7 +183,7 @@ int Master::_readSocket(const int sockfd, std::string &receivedData)
         bytesread = recv(sockfd, buffer, BUFFER_SIZE, MSG_DONTWAIT);
         if (bytesread < 0)
 		{
-			Logger::error(("Failed to read from socket" + Utils::IntToStr(sockfd) + ".").c_str());
+			Logger::error(("Failed to read from socket " + Utils::IntToStr(sockfd) + ".").c_str());
             Response::ServiceUnavailable503(sockfd);
 			return (0);
 		}
@@ -238,7 +238,7 @@ void	Master::_checkServersConnections(void)
 		if (_fds[i].revents & POLLIN)
 		{
 			std::ostringstream oss;
-			oss << "New pending connection on the socket binded to the port "
+			oss << "New pending connection on the server socket binded to the port "
 				<< _servers[i].getPort();
 			Logger::debug(oss.str().c_str());
 
@@ -260,19 +260,23 @@ void	Master::_manageClientsRequests(void)
 		if (_fds[i].revents == 0)
 			continue ;
 		
+
 		if (_fds[i].revents & POLLERR)
 		{
 			std::ostringstream oss;
 			oss << "socket " << _fds[i].fd << " has POLLERR in revents. revents is " << _fds[i].revents << std::endl;
 			Logger::error(oss.str().c_str());
-			Response::BadGateway502(_fds[i].fd);
+		}
+		if (_fds[i].revents & POLLHUP)
+		{
 			_RemoveFd(i);
 			i--;
+			continue ;
 		}
-		else if (_fds[i].revents & POLLIN)
+		if (_fds[i].revents & POLLIN)
 		{
 			std::ostringstream oss;
-			oss << "Reading socket " << _fds[i].fd << "...";
+			oss << "Reading socket " << _fds[i].fd << "...   revents is " << _fds[i].revents;
 			Logger::debug(oss.str().c_str());
 
 			std::string request("");
@@ -289,12 +293,8 @@ void	Master::_manageClientsRequests(void)
 			Logger::debug(oss.str().c_str());
 			int	statusCode = Response::SendResponse(_servers, _fds[i].fd, request);
 			if (statusCode != 200)
-			{
 				Logger::error(("Failed to send response to the client. Status code: " \
 								+ Utils::IntToStr(statusCode) + ".").c_str());
-				// _RemoveFd(i);
-				// i--;
-			}
 		}
 	}
 }
@@ -306,8 +306,9 @@ void	Master::runServers(void)
 	Logger::info("Waiting for connections...");
 	while (1)
 	{
-		// _displayInfos(); // debug tool
+		_displayInfos(); // debug tool
 		int rc = poll(_fds, _nfds, -1);
+
 		if (rc < 0)
 		{
 			Logger::error("Poll error.");
@@ -320,7 +321,6 @@ void	Master::runServers(void)
 		}
 		_checkServersConnections();
 		_manageClientsRequests();
-		_compressArray();
 	}
 }
 
@@ -341,6 +341,9 @@ void Master::_RemoveFd(unsigned int index)
 {
 	if (index >= _nfds || _fds[index].fd == -1)
 		return ;
+	std::ostringstream oss;
+	oss << "Closing socket " << _fds[index].fd;
+	Logger::info(oss.str().c_str());
 	
 	close(_fds[index].fd);
 
