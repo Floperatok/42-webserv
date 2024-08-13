@@ -55,20 +55,8 @@ int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string req
 		return (_WritePage(fd, path, _GetContentType(request, path), "200 OK"));
 	else if (method == "POST" && _IsMethodAllowed(method, location) && _GetMethod(request) == "")
 		return (_HandlePost(fd, request, server.getRoot()));
-	else if (method == "PUT" && _IsMethodAllowed(method, location))
-	{
-
-	}
-	else if (method == "HEAD" && _IsMethodAllowed(method, location))
-	{
-
-	}
 	else if (method == "POST" && _GetMethod(request) == "DELETE" && _IsMethodAllowed("DELETE", location))
 		return (_HandleDelete(fd, request, server.getRoot()));
-	else if (method == "OPTIONS" && _IsMethodAllowed(method, location))
-	{
-
-	}
 	else
 		return (MethodNotAllowed405(fd));
 	return (200);
@@ -233,7 +221,6 @@ std::string	Response::_GenerateUploadsPage(const std::string &root)
 	pageContent += "<header>\n<nav>\n<ul>\n";
 	pageContent += "<li><a href=\"index.html\">Home</a></li>\n";
 	pageContent += "<li><a href=\"post.html\">Upload a file</a></li>\n";
-	pageContent += "<li><a href=\"options.html\">OPTIONS</a></li>\n";
 	pageContent += "<li><a href=\"nonexistent.html\">Error 404</a></li>\n";
 	pageContent += "</ul>\n</nav>\n</header>\n<main>\n";
 	pageContent += "<h1>Uploaded Files</h1>\n<ul>\n";
