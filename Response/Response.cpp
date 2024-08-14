@@ -39,24 +39,30 @@ Response &Response::operator=(const Response &other)
  *	@param	request	The request.
  *	@return	The status code of the response sent.
 */
-int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string request)
+int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string request, char **env)
 {
 	std::string					line = request.substr(0, request.find('\n'));
 	std::vector<std::string>	req = Parser::SplitStr(line, " ");
 	std::string					method = req[0];
 	Server						server = _GetServer(servers, request);
+	std::string					root = server.getRoot();
 	std::string					path = _GetPath(server, req[1]);
 	Location					location = _GetLocation(server, path);
-
+	
 	if (!_CheckAutoIndex(server, location))
 		return (Forbidden403(fd));
 
 	if (method == "GET" && _IsMethodAllowed(method, location))
+	{
+		_GenerateCgiPage(root, req[1]);
+		if (req[1].find("/cgi-bin/cgi_script?script=") != std::string::npos)
+			return (_HandleCgi(fd, root, req[1], location, env));
 		return (_WritePage(fd, path, _GetContentType(request, path), "200 OK"));
+	}
 	else if (method == "POST" && _IsMethodAllowed(method, location) && _GetMethod(request) == "")
-		return (_HandlePost(fd, request, server.getRoot()));
+		return (_HandlePost(fd, request, root, req[1], location));
 	else if (method == "POST" && _GetMethod(request) == "DELETE" && _IsMethodAllowed("DELETE", location))
-		return (_HandleDelete(fd, request, server.getRoot()));
+		return (_HandleDelete(fd, request, root));
 	else
 		return (MethodNotAllowed405(fd));
 	return (200);
@@ -122,19 +128,27 @@ int	Response::_WritePage(int fd, const std::string &path, const std::string &typ
 }
 
 /*
- *	@brief	Upload a file into the server, creates the file, and sends a success page in case of success.
- *	@param	fd	The socket's file descriptor.
- *	@param	request	The request.
- *	@param	root	The root directory of the website.
+ *	@brief Upload a file into the server, creates the file, and sends a success page in case of success.
+ *	@param fd The socket's file descriptor.
+ *	@param request The request.
+ *	@param root The root directory of the website.
+ *	@param path The path from the request.
  *	@return	200 in case of success, 500 in case of error.
 */
-int Response::_HandlePost(int fd, const std::string &request, const std::string &root)
+int Response::_HandlePost(int fd, const std::string &request, const std::string &root, \
+							const std::string &path, Location &location)
 {
     std::string		boundary = _GetBoundary(request);
     std::string		body = request.substr(request.find("\r\n\r\n") + 4);
     std::string		filename = _ExtractFilename(body);
     std::string		fileData = _ExtractFileData(body, boundary);
+
+	if (path == "/cgi-bin" && !_CheckExtension(filename, location.getCgiExt()))
+		return (Forbidden403(fd));
+
     std::string		uploadPath = root + "uploads/" + filename;
+	if (path == "/cgi-bin")
+		uploadPath = root + "cgi-bin/" + filename;
 
 	if (boundary.empty() || filename.empty() || fileData.empty())
 		return (InternalServerError500(fd));
@@ -142,16 +156,20 @@ int Response::_HandlePost(int fd, const std::string &request, const std::string 
     std::ofstream	outFile(uploadPath.c_str(), std::ios::binary);
     if (!outFile)
 	{
-		Logger::error("Failed to open file for writting.");
+		Logger::error(("Failed to open '" + uploadPath + "' for writting.").c_str());
         return (InternalServerError500(fd));
 	}
     
     outFile.write(fileData.c_str(), fileData.size());
     outFile.close();
 
+	if (path == "/cgi-bin")
+		_WritePage(fd, root + "script_uploaded.html", "text/html", "200 OK");
+	else
+	{
 	_UpdateUploadsPage(root);
-    
-	_WritePage(fd, "www/file_uploaded.html", "text/html", "200 OK");
+	_WritePage(fd, root + "file_uploaded.html", "text/html", "200 OK");
+	}
     
     return (200);
 }
@@ -191,6 +209,30 @@ std::string Response::_ExtractFilename(const std::string &body)
 }
 
 /*
+ *	@brief Checks if cgi extension is allowed.
+ *	@param filename The file's name;
+ *	@parem ext The allowed extensions from config file.
+*/
+bool	Response::_CheckExtension(const std::string &filename, const std::vector<std::string> &ext)
+{
+	std::string	name = filename;
+	std::vector<std::string>	splittedFilename = Parser::SplitStr(name, ".");
+
+	if (splittedFilename.size() > 2)
+		return (false);
+	else if (splittedFilename.size() < 2)
+		return (true);
+
+	std::string extension = "." + splittedFilename[1];
+	
+	for (size_t i = 0 ; i < ext.size() ; i++)
+		if (extension == ext[i])
+			return (true);
+	
+	return (false);
+}
+
+/*
  *	@brief	Extracts a file's data from the request's body.
  *	@param	body	The request's body.
  *	@param	boundary	The request's boundary.
@@ -215,19 +257,20 @@ std::string	Response::_GenerateUploadsPage(const std::string &root)
 {
 	std::string uploadDir = root + "uploads/";
 	std::string pageContent = "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n";
-	pageContent += "<meta charset=\"UTF-8\">\n";
-	pageContent += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
-	pageContent += "<title>Uploads</title>\n<link rel=\"stylesheet\" href=\"style.css\">\n</head>\n<body>\n";
-	pageContent += "<header>\n<nav>\n<ul>\n";
-	pageContent += "<li><a href=\"index.html\">Home</a></li>\n";
-	pageContent += "<li><a href=\"post.html\">Upload a file</a></li>\n";
-	pageContent += "<li><a href=\"nonexistent.html\">Error 404</a></li>\n";
-	pageContent += "</ul>\n</nav>\n</header>\n<main>\n";
-	pageContent += "<h1>Uploaded Files</h1>\n<ul>\n";
+	pageContent += "\t<meta charset=\"UTF-8\">\n";
+	pageContent += "\t<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
+	pageContent += "\t<title>Uploads</title>\n\t<link rel=\"stylesheet\" href=\"style.css\">\n</head>\n<body>\n";
+	pageContent += "\t<header>\n\t\t<nav>\n\t\t\t<ul>\n";
+	pageContent += "\t\t\t\t<li><a href=\"index.html\">Home</a></li>\n";
+	pageContent += "\t\t\t\t<li><a href=\"post.html\">Upload a file</a></li>\n";
+	pageContent += "\t\t\t\t<li><a href=\"cgi.html\">CGI Scripts</a></li>\n";
+	pageContent += "\t\t\t\t<li><a href=\"nonexistent.html\">Error 404</a></li>\n";
+	pageContent += "\t\t\t</ul>\n\t\t</nav>\n\t</header>\n\t<main>\n";
+	pageContent += "\t\t<h1>Uploaded Files</h1>\n\t\t<ul>\n";
 
 	DIR *dir = opendir(uploadDir.c_str());
 	if (!dir)
-		pageContent += "<li>Unable to open uploads directory.</li>\n";
+		pageContent += "\t\t\t<li>Unable to open uploads directory.</li>\n";
 	else
 	{
 		struct dirent *entry;
@@ -235,7 +278,7 @@ std::string	Response::_GenerateUploadsPage(const std::string &root)
 			if (entry->d_type == DT_REG)
 			{
 				std::string	fileName = entry->d_name;
-				pageContent += "<li>";
+				pageContent += "\t\t\t<li>";
 				pageContent += "<a href=\"uploads/" + fileName + "\" class=\"uploaded-files-link\">" + fileName + "</a>";
 				pageContent += " <form action=\"/delete_test\" method=\"POST\" style=\"display:inline;\">";
 				pageContent += "<input type=\"hidden\" name=\"_method\" value=\"DELETE\">";
@@ -247,8 +290,8 @@ std::string	Response::_GenerateUploadsPage(const std::string &root)
 		closedir(dir);
 	}
 
-	pageContent += "</ul>\n</main>\n<footer>\n<p>&copy; 2024, by drenassi and nsalles.</p>\n";
-	pageContent += "</footer>\n</body>\n</html>";
+	pageContent += "\t\t</ul>\n\t</main>\n\t<footer>\n\t\t<p>&copy; 2024, by drenassi and nsalles.</p>\n";
+	pageContent += "\t</footer>\n</body>\n</html>";
 
 	return pageContent;
 }
@@ -314,6 +357,119 @@ std::string	Response::_GetFilePathToDelete(const std::string &request)
 	pathToDelete = request.substr(start, end - start);
 
 	return (pathToDelete);
+}
+
+/*
+ *	@brief Handle CGI GET requests.
+ *	@param fd The socket's file descriptor.
+ *	@param root The website's root.
+ *	@param path The path from the request.
+ *	@param location The CGI location.
+ *	@return The appropriate status code.
+*/
+int	Response::_HandleCgi(int fd, const std::string &root, std::string &path, Location &location, char **env)
+{
+	
+	path.erase(9, 18);
+	path.erase(0, 1);
+	path = root + path;
+
+	std::string	ext = _GetExtension(path);
+
+	std::string	cgiPath;
+	if (ext.empty())
+		cgiPath = "";
+	else
+	{
+		std::vector<std::string>	cgiPaths = location.getCgiPath();
+		std::vector<std::string>	cgiExts = location.getCgiExt();
+
+		for (size_t i = 0 ; i < cgiExts.size() ; i++)
+			if (ext == cgiExts[i])
+				cgiPath = cgiPaths[i];
+		if (cgiPath.empty())
+			return (InternalServerError500(fd));
+	}
+
+	std::string	content;
+	if (Cgi::getResponse(path, cgiPath, content, env) < 0)
+		return (InternalServerError500(fd));
+	
+	std::string	contentType = "text/plain";
+
+	if (content.find("Content-type: ") == 0)
+	{
+		size_t	start = content.find("Content-type: ") + 14;
+		size_t	end = content.find("\r\n", start);
+		if (end != std::string::npos)
+		{
+			contentType = content.substr(start, end - start);
+			content = content.substr(end + 2);
+		}
+	}
+
+	std::string headers = "HTTP/1.1 200 OK\r\n";
+	headers += "Content-Length: " + Utils::IntToStr(content.size()) + "\r\n";
+	headers += "Content-Type: " + contentType + "\r\n\r\n";
+
+	if (send(fd, headers.c_str(), headers.size(), MSG_NOSIGNAL) < 0)
+	{
+		Logger::error("Failed to write content.");
+		return (InternalServerError500(fd));
+	}
+
+	ssize_t	bytesWritten = send(fd, content.c_str(), content.size(), MSG_NOSIGNAL);
+	if (bytesWritten < 0)
+	{
+		Logger::error("Failed to write CGI content.");
+		return (InternalServerError500(fd));
+	}
+	else if (static_cast<size_t>(bytesWritten) != content.size())
+	{
+		Logger::error("Incomplete CGI content written.");
+		return InternalServerError500(fd);
+	}
+
+	Logger::debug(("Response sent: HTTP/1.1 200 OK | Content-Type: " + contentType \
+				+ " | Content-Length: " + Utils::IntToStr(content.size())).c_str());
+
+	return (200);
+}
+
+/*
+ *	@brief Generates cgi.html page.
+ *	@param root The server's root.
+ *	@param path The path to the html page from the request.
+*/
+void	Response::_GenerateCgiPage(const std::string &root, const std::string &path)
+{
+	if (path == "/cgi.html")
+	{
+		std::string		cgiPageContent = Cgi::GenerateCgiPage();
+		std::ofstream	outFile((root + "cgi.html").c_str(), std::ios::binary);
+		if (!outFile)
+			Logger::error("Failed to generate cgi.html page.");
+		outFile.write(cgiPageContent.c_str(), cgiPageContent.size());
+		outFile.close();
+	}
+}
+
+/*
+ *	@brief Gets the extension from a file.
+ *	@param path The file's path from request.
+ *	@return The extension.
+*/
+std::string	Response::_GetExtension(const std::string &path)
+{
+	std::string					ext = path;
+	std::vector<std::string>	splitted = Parser::SplitStr(ext, ".");
+
+	if (splitted.size() == 1)
+		return ("");
+	
+	ext = "." + splitted[1];
+
+	return (ext);
 }
 
 /*
@@ -608,7 +764,6 @@ int	Response::InternalServerError500(int fd, const std::string &path)
 	if (_WritePage(fd, path, "text/html", "500 Internal Server Error", true) == -1)
 		Logger::error("Failed to send 500 response.");
 
-	// Logger::error("Internal Server Error 500 called.");
 	return (500);
 }
 
@@ -667,11 +822,3 @@ int	Response::GatewayTimeout504(int fd, const std::string &path)
 
 	return (504);
 }
-
-
-
-
-/* ########## Exception ########## */
-
-
-/* ########## Non-member function ########## */

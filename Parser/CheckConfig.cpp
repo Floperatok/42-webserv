@@ -156,6 +156,8 @@ void CheckConfig::_CheckKeywords(std::string &content)
 		std::string 				root = "";
 		std::string 				index = "";
 		std::vector<std::string>	errorPagePaths;
+		std::vector<std::string>	cgiPaths;
+		std::vector<std::string>	cgiExts;
 		
 		serverContent = serversContent.back();
 		if (serverContent.find("listen") == std::string::npos)
@@ -163,21 +165,12 @@ void CheckConfig::_CheckKeywords(std::string &content)
 		if (serverContent.find("host") == std::string::npos)
 			throw (MissingParameterException("Host not found."));
 
-		
 		parameters = Parser::SplitStr(serverContent, ";{}");
-
-		/************************************ DEBUG ************************************/
-		// size_t i = 0;
-		/************************************ DEBUG ************************************/
 
 		for (std::vector<std::string>::iterator it = parameters.begin() ; it != parameters.end() ; it++)
 		{
 			std::string	parameter = *it;
 			Parser::TrimStr(parameter, " ");
-
-			/************************************ DEBUG ************************************/
-			// std::cout << i++ << ": '" << parameter << "'" << std::endl;
-			/************************************ DEBUG ************************************/
 
 			if (parameter.find("listen") != std::string::npos)
 			{
@@ -212,7 +205,8 @@ void CheckConfig::_CheckKeywords(std::string &content)
 				parameter.erase(0, 5);
 				if (parameter.find(' ') != std::string::npos)
 					throw (WrongParameterException("Invalid root '" + parameter + "'."));
-				root = parameter;
+				if (root == "")
+					root = parameter;
 			}
 			else if (parameter.find("index") != std::string::npos
 				  && parameter.find("autoindex") == std::string::npos)
@@ -222,7 +216,8 @@ void CheckConfig::_CheckKeywords(std::string &content)
 				parameter.erase(0, 6);
 				if (parameter.find(' ') != std::string::npos)
 					throw (WrongParameterException("Invalid index '" + parameter + "'."));
-				index = parameter;
+				if (index == "")
+					index = parameter;
 			}
 			else if (parameter.find("error_page") != std::string::npos)
 			{
@@ -234,14 +229,35 @@ void CheckConfig::_CheckKeywords(std::string &content)
 					throw (WrongParameterException("Invalid error page '" + parameter + "'."));
 				errorPagePaths.push_back(errorPage[1]);
 			}
-			else if (parameter.find("location") != std::string::npos)
-				break ;
-
+			else if (parameter.find("autoindex") != std::string::npos)
+			{
+				if (parameter[9] != ' ')
+					throw (WrongParameterException("Invalid autoindex '" + parameter + "'."));
+				parameter.erase(0, 10);
+				if (parameter != "on" && parameter != "off")
+					throw (WrongParameterException("Invalid autoindex '" + parameter + "'."));
+			}
+			else if (parameter.find("allow_methods") != std::string::npos)
+			{
+				if (parameter[13] != ' ')
+					throw (WrongParameterException("Invalid allow_methods '" + parameter + "'."));
+				parameter.erase(0, 14);
+			}
+			else if (parameter.find("cgi_path") != std::string::npos)
+			{
+				if (parameter[8] != ' ')
+					throw (WrongParameterException("Invalid cgi_path '" + parameter + "'."));
+				parameter.erase(0, 9);
+				cgiPaths = Parser::SplitStr(parameter, " ");
+			}
+			else if (parameter.find("cgi_ext") != std::string::npos)
+			{
+				if (parameter[7] != ' ')
+					throw (WrongParameterException("Invalid cgi_ext '" + parameter + "'."));
+				parameter.erase(0, 8);
+				cgiExts = Parser::SplitStr(parameter, " ");
+			}
 		}
-
-		/************************************ DEBUG ************************************/
-		// std::cout << std::endl;
-		/************************************ DEBUG ************************************/
 		
 		if (access(root.c_str(), F_OK) == -1)
 			throw (WrongParameterException("Can't access root path '" + root + "'."));
@@ -258,6 +274,9 @@ void CheckConfig::_CheckKeywords(std::string &content)
 			if (access((root + *it).c_str(), F_OK | R_OK) == -1)
 				throw (WrongParameterException("Can't access error page path '" + root + *it + "'."));
 		}
+		if (cgiExts.size() != cgiPaths.size())
+			throw (WrongParameterException("Need one path for each CGI extension."));
+
 		serversContent.pop_back();
 	}
 }

@@ -36,4 +36,5 @@ class Parser
 		static void _RemoveWhiteSpaces(std::string &content);
 		static void	_ParseServer(std::vector<std::string> &parameters, Server &server);
 		static void	_ParseLocations(std::vector<std::string> &parameters, Server &server);
+		static void	_CreateUploadsDir(const std::string &root);
 };

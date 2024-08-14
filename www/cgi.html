@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>CGI Management</title>
+	<link rel="stylesheet" href="style.css">
+</head>
+<body>
+	<header>
+		<nav>
+			<ul>
+				<li><a href="index.html">Home</a></li>
+				<li><a href="post.html">POST</a></li>
+				<li><a href="cgi.html">CGI Scripts</a></li>
+				<li><a href="nonexistent.html">Error 404</a></li>
+			</ul>
+		</nav>
+	</header>
+	<main>
+		<h1>CGI Scripts Management</h1>
+		<section>
+			<h2>Upload a CGI Script</h2>
+			<form action="/cgi-bin" method="POST" enctype="multipart/form-data">
+				<label for="cgi_file">Select CGI Script to Upload:</label>
+				<input type="file" id="cgi_file" name="cgi_file">
+				<br><br>
+				<input type="submit" value="Upload Script">
+			</form>
+		</section>
+		<br>
+		<section>
+			<h2>Execute a CGI Script</h2>
+			<form action="/cgi-bin/cgi_script" method="GET">
+				<label for="script_select">Select Script:</label>
+				<select id="script_select" name="script">
+					<option value="test.py">test.py</option>
+					<option value="test.c">test.c</option>
+				</select>
+				<br><br>
+				<input type="submit" value="Execute Script">
+			</form>
+		</section>
+	</main>
+	<footer>
+		<p>&copy; 2024, by drenassi and nsalles.</p>
+	</footer>
+</body>
+</html>

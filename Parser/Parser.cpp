@@ -186,18 +186,17 @@ void	Parser::ParseConfigFile(const std::string &configPath, Master &master)
 
 		Parser::_ParseServer(parameters, server);
 		Parser::_ParseLocations(parameters, server);
+		Parser::_CreateUploadsDir(server.getRoot());
 
 		/************************************ DEBUG ************************************/
-		// server.printServerAttributes();
+		server.printServerAttributes();
 		/************************************ DEBUG ************************************/
 
 		servers.push_back(server);
 		serversContent.pop_back();
 	}
 
-	// return (servers);
 	master.setServers(servers);
-
 }
 
 /*
@@ -244,12 +243,82 @@ void	Parser::_ParseServer(std::vector<std::string> &parameters, Server &server)
 				parameter.erase(0, 1);
 			server.setIndex(parameter);
 		}
-		else if (parameter.find("error_page 404") != std::string::npos)
+		else if (parameter.find("error_page 400 ") != std::string::npos)
+		{
+			parameter.erase(0, 15);
+			if (parameter[0] == '/')
+				parameter.erase(0, 1);
+			server.setErrorPage400(parameter);
+		}
+		else if (parameter.find("error_page 403 ") != std::string::npos)
+		{
+			parameter.erase(0, 15);
+			if (parameter[0] == '/')
+				parameter.erase(0, 1);
+			server.setErrorPage403(parameter);
+		}
+		else if (parameter.find("error_page 404 ") != std::string::npos)
 		{
 			parameter.erase(0, 15);
 			if (parameter[0] == '/')
 				parameter.erase(0, 1);
 			server.setErrorPage404(parameter);
+		}
+		else if (parameter.find("error_page 405 ") != std::string::npos)
+		{
+			parameter.erase(0, 15);
+			if (parameter[0] == '/')
+				parameter.erase(0, 1);
+			server.setErrorPage405(parameter);
+		}
+		else if (parameter.find("error_page 408 ") != std::string::npos)
+		{
+			parameter.erase(0, 15);
+			if (parameter[0] == '/')
+				parameter.erase(0, 1);
+			server.setErrorPage408(parameter);
+		}
+		else if (parameter.find("error_page 413 ") != std::string::npos)
+		{
+			parameter.erase(0, 15);
+			if (parameter[0] == '/')
+				parameter.erase(0, 1);
+			server.setErrorPage413(parameter);
+		}
+		else if (parameter.find("error_page 500 ") != std::string::npos)
+		{
+			parameter.erase(0, 15);
+			if (parameter[0] == '/')
+				parameter.erase(0, 1);
+			server.setErrorPage500(parameter);
+		}
+		else if (parameter.find("error_page 501 ") != std::string::npos)
+		{
+			parameter.erase(0, 15);
+			if (parameter[0] == '/')
+				parameter.erase(0, 1);
+			server.setErrorPage501(parameter);
+		}
+		else if (parameter.find("error_page 502 ") != std::string::npos)
+		{
+			parameter.erase(0, 15);
+			if (parameter[0] == '/')
+				parameter.erase(0, 1);
+			server.setErrorPage502(parameter);
+		}
+		else if (parameter.find("error_page 503 ") != std::string::npos)
+		{
+			parameter.erase(0, 15);
+			if (parameter[0] == '/')
+				parameter.erase(0, 1);
+			server.setErrorPage503(parameter);
+		}
+		else if (parameter.find("error_page 504 ") != std::string::npos)
+		{
+			parameter.erase(0, 15);
+			if (parameter[0] == '/')
+				parameter.erase(0, 1);
+			server.setErrorPage504(parameter);
 		}
 		else if (parameter.find("location") != std::string::npos)
 			break ;
@@ -331,4 +400,20 @@ void	Parser::_ParseLocations(std::vector<std::string> &parameters, Server &serve
 		}
 	}
 	server.setLocations(locations);
+}
+
+/*
+ *	@brief Checks if uploads and cgi-bin directories exist and creates it if not.
+ *	@param root The server's root.
+*/
+void	Parser::_CreateUploadsDir(const std::string &root)
+{
+	const char	*dir = (root + "uploads").c_str();
+	struct stat	sb;
+
+	if (stat(dir, &sb))
+		system(("mkdir " + root + "uploads").c_str());
+	dir = (root + "cgi-bin").c_str();
+	if (stat(dir, &sb))
+		system(("mkdir " + root + "cgi-bin").c_str());
 }

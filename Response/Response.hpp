@@ -5,6 +5,7 @@
 #include "Utils.hpp"
 #include "Parser.hpp"
 #include "Logger.hpp"
+#include "Cgi.hpp"
 
 #define	ERROR_CSS	"www/error_pages/error_pages.css"
 #define ERROR_400	"www/error_pages/400.html"
@@ -42,9 +43,11 @@ class Response
 										const std::string &status, bool recursed = false);
 		
 		// POST Methods
-		static int			_HandlePost(int fd, const std::string &request, const std::string &root);
+		static int			_HandlePost(int fd, const std::string &request, \
+										const std::string &root, const std::string &path, Location &location);
 		static std::string	_GetBoundary(const std::string &request);
 		static std::string	_ExtractFilename(const std::string &body);
+		static bool			_CheckExtension(const std::string &filename, const std::vector<std::string> &ext);
 		static std::string	_ExtractFileData(const std::string &body, const std::string &boundary);
 		static std::string	_GenerateUploadsPage(const std::string &root);
 		static void			_UpdateUploadsPage(const std::string &root);
@@ -53,12 +56,18 @@ class Response
 		static int			_HandleDelete(int fd, const std::string &request, const std::string &root);
 		static std::string	_GetFilePathToDelete(const std::string &request);
 
+		// CGI
+		static int			_HandleCgi(int fd, const std::string &root, std::string &path, \
+										Location &location, char **env);
+		static void			_GenerateCgiPage(const std::string &root, const std::string &path);
+		static std::string	_GetExtension(const std::string &path);
+
 	public:
 		// Constructors
 		~Response(void);
 
 		// Methods
-		static int	SendResponse(std::vector<Server> &servers, int fd, std::string request);
+		static int	SendResponse(std::vector<Server> &servers, int fd, std::string request, char **env);
 
 		// Error pages Methods
 		static int	BadRequest400(int fd, const std::string &path = ERROR_400);

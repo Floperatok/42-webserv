@@ -42,8 +42,49 @@ main {
     justify-content: center;
     align-items: center;
     text-align: center;
+    font-size: 1.5rem;
+    line-height: 1.0;
+}
+
+h1 {
     font-size: 3rem;
-    line-height: 1.5;
+}
+
+h2 {
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+}
+
+section {
+    margin-bottom: 1rem;
+}
+
+form {
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+label, input, select {
+    margin-bottom: 0.3rem;
+    margin-right: 0.5rem;
+    font-size: 1.2rem;
+}
+
+input[type="submit"] {
+    margin-top: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 1.2rem;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 1.2rem;
+}
+
+th, td {
+    padding: 0.5rem;
+    text-align: left;
 }
 
 footer {
@@ -63,5 +104,5 @@ footer {
 }
 
 .uploaded-files-link:hover {
-    color: #00ff40; /* Optionnel : couleur de survol */
+    color: #00ff40;
 }

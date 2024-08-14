@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test POST</title>
+    <title>File Uploaded</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -18,16 +18,9 @@
         </nav>
     </header>
     <main>
-        <h1>Upload a file</h1>
-        <form action="/uploads" method="POST" enctype="multipart/form-data">
-            <label for="file">Upload a file:</label>
-            <input type="file" id="file" name="file">
-            <br>
-            <input type="submit" value="Submit" style="margin-top: 10px;">
-        </form>
-        <div style="text-align: center; margin-top: 40;">
-            <a href="/uploads.html" class="uploaded-files-link">View uploaded files</a>
-        </div>
+        <h1>CGI Script Successfully Uploaded!</h1>
+        <p>Your CGI script has been successfully uploaded to the server.</p>
+        <a href="/cgi.html" class="uploaded-files-link">Back to CGI Scripts</a>
     </main>
     <footer>
         <p>&copy; 2024, by drenassi and nsalles.</p>

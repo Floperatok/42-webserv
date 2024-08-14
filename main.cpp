@@ -17,7 +17,7 @@ std::vector<Server>	tempServerInit(const unsigned int n)
 	return (servers);
 }
 
-int main(int argc, char **argv)
+int main(int argc, char **argv, char **env)
 {
 	std::string	configFilePath = "Config/config.conf";
 	if (argc == 2)
@@ -40,7 +40,7 @@ int main(int argc, char **argv)
 
 		// Setup and run servers
 		master.setupServers();
-		master.runServers();
+		master.runServers(env);
 
 	}
 	catch (const std::exception &e)

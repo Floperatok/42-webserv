@@ -213,7 +213,7 @@ int Master::_readSocket(const int sockfd, std::string &receivedData)
 		if (headersReceived && receivedData.size() >= headersEndPos + 4 + contentLength)
         {
 			Logger::info(("Request received from socket " + Utils::IntToStr(sockfd) + ".").c_str());
-			Logger::debug(("Received request:\n'" + receivedData + "'").c_str());
+			// Logger::debug(("Received request:\n'" + receivedData + "'").c_str());
 
 			return (1);
         }
@@ -253,7 +253,7 @@ void	Master::_checkServersConnections(void)
 	}
 }
 
-void	Master::_manageClientsRequests(void)
+void	Master::_manageClientsRequests(char **env)
 {
 	for (size_t i = _nbServers; i < _nfds; i++)
 	{
@@ -291,7 +291,7 @@ void	Master::_manageClientsRequests(void)
 			oss.clear();
 			oss << "Sending response to socket_fd " << _fds[i].fd << "...";
 			Logger::debug(oss.str().c_str());
-			int	statusCode = Response::SendResponse(_servers, _fds[i].fd, request);
+			int	statusCode = Response::SendResponse(_servers, _fds[i].fd, request, env);
 			if (statusCode != 200)
 				Logger::error(("Failed to send response to the client. Status code: " \
 								+ Utils::IntToStr(statusCode) + ".").c_str());
@@ -299,14 +299,14 @@ void	Master::_manageClientsRequests(void)
 	}
 }
 
-void	Master::runServers(void)
+void	Master::runServers(char **env)
 {
 	Logger::info("Launching servers");
 	_initFds();
 	Logger::info("Waiting for connections...");
 	while (1)
 	{
-		_displayInfos(); // debug tool
+		// _displayInfos(); // debug tool
 		int rc = poll(_fds, _nfds, -1);
 
 		if (rc < 0)
@@ -320,7 +320,7 @@ void	Master::runServers(void)
 			continue ;
 		}
 		_checkServersConnections();
-		_manageClientsRequests();
+		_manageClientsRequests(env);
 	}
 }
 

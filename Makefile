@@ -17,7 +17,7 @@ SRCS			=	main.cpp \
 OBJ_PATH	=	objs/
 OBJS		=	$(addprefix $(OBJ_PATH), $(SRCS:.cpp=.o))
 
-UPLOADED_FILES = www/uploads/*
+UPLOADED_FILES = www/uploads/* www/cgi-bin/*
 
 INCLUDES	=	-I Utils/ -I Logs/ -I Master/ -I Server/ -I Response/ -I Parser/ -I Cgi/
 

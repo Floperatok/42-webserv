@@ -26,7 +26,7 @@ private:
 	int			_readSocket(const int sockfd, std::string &receivedData);
 	void		_sendResponse(Server &server, const int sockfd, const std::string &request);
 	void		_checkServersConnections(void);
-	void		_manageClientsRequests(void);
+	void		_manageClientsRequests(char **env);
 	void		_RemoveFd(unsigned int index);
 	bool		_isKeepAlive(const std::string &request);
 	// debug
@@ -42,7 +42,7 @@ public:
 
 	// Methods
 	void	setupServers(void);
-	void	runServers(void);
+	void	runServers(char **env);
 
 	// Getters and setters
 	void	setServers(std::vector<Server> servers);
