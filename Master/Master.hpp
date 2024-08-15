@@ -21,16 +21,15 @@ private:
 	// Methods
 	void		_initFds(void);
 	void 		_storeFd(int fd, const Server &server, const short events);
-	void		_compressArray(void);
 	int			_createClientSocket(Server &server);
 	int			_readSocket(const int sockfd, std::string &receivedData);
-	void		_sendResponse(Server &server, const int sockfd, const std::string &request);
 	void		_checkServersConnections(void);
 	void		_manageClientsRequests(char **env, size_t *index);
 	void		_RemoveFd(unsigned int index);
 	bool		_isKeepAlive(const std::string &request);
 	// debug
 	void		_displayInfos(void) const;
+
 public:
 	// Constructors
 	Master();

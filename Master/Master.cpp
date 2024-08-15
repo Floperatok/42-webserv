@@ -1,17 +1,13 @@
-
 #include "Master.hpp"
 
 
-/* ########## Constructor ########## */
-Master::Master() : _nbServers(0), _nfds(0)
-{
 
-}
+/* ################################## CONSTRUCTORS ################################## */
+
+Master::Master() : _nbServers(0), _nfds(0) {}
 
 Master::Master(std::vector<Server> &servers)
-	:	_servers(servers), _nbServers(servers.size())
-{
-}
+	:	_servers(servers), _nbServers(servers.size()) {}
 
 Master::Master(const Master &copy)
 {
@@ -19,12 +15,11 @@ Master::Master(const Master &copy)
 		*this = copy;
 }
 
-Master::~Master(void)
-{
-}
+Master::~Master(void) {}
 
 
-/* ########## Operator overload ########## */
+
+/* ############################## OPERATOR'S OVERLOADS ############################## */
 
 Master &Master::operator=(const Master &other)
 {
@@ -39,16 +34,18 @@ Master &Master::operator=(const Master &other)
 }
 
 
-/* ########## Setter/Getter ########## */
 
-void	Master::setServers(std::vector<Server> servers)
-{
-	_servers = servers;
-}
+/* ############################## GETTERS AND SETTERS ############################### */
+
+void	Master::setServers(std::vector<Server> servers) {	_servers = servers;	}
 
 
-/* ########## Member function ########## */
 
+/* ################################ MEMBER FUNCTIONS ################################ */
+
+/*
+ *	@brief Setups all serveurs by calling their setup function.
+*/
 void	Master::setupServers(void)
 {
 	std::vector<Server>::iterator	it = _servers.begin();
@@ -67,9 +64,12 @@ void	Master::setupServers(void)
 	_nbServers = _servers.size();
 }
 
+/*
+ *	@brief Initializes the pollfd structures.
+*/
 void	Master::_initFds(void)
 {
-	Logger::debug("Fds initialization");
+	Logger::debug("Fds initialization...");
 	_nfds = _nbServers;
 	for (size_t i = 0; i < MAX_CLIENT; i++)
 	{
@@ -90,9 +90,10 @@ void	Master::_initFds(void)
 }
 
 /*
- *	Stores fd in the array struct pollfd _fds.
- *	Send a "Service Unavailable" response and close the connection
- *		if no client slot are available.
+ *	@brief Stores a socket's file descriptor and it's event into the array of pollfd structures.
+ *	@param fd The socket's file descriptor to store.
+ *	@param server The server corresponding to the client concerned.
+ *	@param events The event to store.
 */
 void	Master::_storeFd(int fd, const Server &server, const short events)
 {
@@ -118,25 +119,9 @@ void	Master::_storeFd(int fd, const Server &server, const short events)
 }
 
 /*
- *	Squeezes together the array and decrements the number of file descriptors.
-*/
-void	Master::_compressArray(void)
-{
-	for (size_t i = 0; i < _nfds; i++)
-	{
-		if (_fds[i].fd == -1)
-		{
-			for (size_t j = i; j < _nfds - 1; j++)
-				_fds[j].fd = _fds[j + 1].fd;
-			i--;
-			_nfds--;
-		}
-	}
-}
-
-/*
- *	Creates new client socket and returns it.
- *	Returns -1 in case of error.
+ *	@brief Creates a socket for a client.
+ *	@param server The server on which the client wants to connect.
+ *	@return The file descriptor of the created socket, or -1 in case of error.
 */
 int	Master::_createClientSocket(Server &server)
 {
@@ -158,8 +143,10 @@ int	Master::_createClientSocket(Server &server)
 }
 
 /*
- *	Reads from the socket and stores the request in receivedData.
- *	Returns 0 if connection is closed, else 1.
+ *	@brief Gets the content of a request from a socket.
+ *	@param sockfd The socket's file descriptor.
+ *	@param receivedData A string where the request's content will be appended.
+ *	@return 1 if the request was fully received, 0 if it was received partially, -1 in case of error.
 */
 int	Master::_readSocket(const int sockfd, std::string &receivedData)
 {
@@ -210,7 +197,8 @@ int	Master::_readSocket(const int sockfd, std::string &receivedData)
 }
 
 /*
- *	check for new connection on any server socket
+ *	@brief Checks for new connections on each server. If a new connection is found, 
+ *	creates a new client's socket and updates the array of pollfd structures.
 */
 void	Master::_checkServersConnections(void)
 {
@@ -234,6 +222,12 @@ void	Master::_checkServersConnections(void)
 	}
 }
 
+/*
+ *	@brief Checks for clients' requests by checking poll events. If the event is POLLIN, 
+ *	reads the socket's file descriptor. When socket is fully read, sends response.
+ *	@param env The environnement to use for CGI Scripts.
+ *	@param i A pointer to the client's index.
+*/
 void	Master::_manageClientsRequests(char **env, size_t *i)
 {
 	if (*i >= _nfds)
@@ -286,6 +280,10 @@ void	Master::_manageClientsRequests(char **env, size_t *i)
 	}
 }
 
+/*
+ *	@brief Runs servers with a poll waiting for new connections or requests.
+ *	@param env The environnement to use for CGI Scripts.
+*/
 void	Master::runServers(char **env)
 {
 	size_t	i = _nbServers;
@@ -313,7 +311,9 @@ void	Master::runServers(char **env)
 	}
 }
 
-
+/*
+ *	@brief Debug tool to display informations about servers and clients.
+*/
 void	Master::_displayInfos(void) const
 {	
 	std::cout << "number of servers: " << _nbServers << std::endl;
@@ -326,6 +326,11 @@ void	Master::_displayInfos(void) const
 	
 }
 
+/*
+ *	@brief Removes a socket from the array of pollfd structures 
+ *	and updates the array by shifting all elements.
+ *	@param index The index of the socket to remove.
+*/
 void Master::_RemoveFd(unsigned int index)
 {
 	if (index >= _nfds || _fds[index].fd == -1)
@@ -344,6 +349,11 @@ void Master::_RemoveFd(unsigned int index)
 	_nfds--;
 }
 
+/*
+ *	@brief Checks if keep-alive parameter is active in a request.
+ *	@param request The request to check.
+ *	@return TRUE if keep-alive is active, FALSE if not.
+*/
 bool Master::_isKeepAlive(const std::string &request)
 {
     std::string::size_type pos = request.find("Connection: ");
@@ -356,9 +366,3 @@ bool Master::_isKeepAlive(const std::string &request)
     }
     return (false);
 }
-
-
-/* ########## Exception ########## */
-
-
-/* ########## Non-member function ########## */
