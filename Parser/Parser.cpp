@@ -1,6 +1,8 @@
 #include "Parser.hpp"
 
-/* ########## Constructors ########## */
+
+
+/* ################################## CONSTRUCTORS ################################## */
 Parser::Parser()
 {
 
@@ -24,9 +26,9 @@ Parser::~Parser()
 
 }
 
-/* ########## Getters and setters ########## */
 
-/* ########## Member functions ########## */
+
+/* ################################ MEMBER FUNCTIONS ################################ */
 
 /*
  *	@brief Removes comments in a string content.
@@ -72,83 +74,33 @@ void Parser::_RemoveWhiteSpaces(std::string &content)
 }
 
 /*
- *	@brief Split a string into substrings delimited by a charset.
- *	@param str The string to split.
- *	@param charset The delimiting characters.
- *	@return The splited string.
-*/
-std::vector<std::string> Parser::SplitStr(std::string &str, const char *charset)
-{
-	std::vector<std::string>	splited;
-	std::string					set = charset;
-
-	for (size_t i = 0 ; i < str.length() ; i++)
-	{
-		size_t start = i;
-
-		while (str[i] && set.find(str[i]) == std::string::npos)
-			i++;
-		
-		splited.push_back(str.substr(start, i - start));
-
-		while (set.find(str[i]) != std::string::npos && set.find(str[i + 1]) != std::string::npos)
-			i++;
-	}
-
-	return (splited);
-}
-
-/*
- *	@brief Cuts the beginning and the end of a string according to a charset.
- *	@param str The string to trim.
- *	@param charset The delimiting characters.
-*/
-void Parser::TrimStr(std::string &str, const char *charset)
-{
-	int		i = 0;
-	std::string	set = charset;
-
-	if (str.length() == 0 || str.find_first_of(charset) == std::string::npos)
-		return ;
-
-	while (str[i] && set.find(str[i]) != std::string::npos)
-		i++;
-	str.erase(0, i);
-
-	size_t		len = str.length() - 1;
-	i = len;
-	while (i >= 0 && set.find_last_of(str[i]) != std::string::npos)
-		i--;
-	str.erase(i + 1, len - i);
-}
-
-/*
  *	@brief Separates the config file content according to servers.
  *	@param content The string content from the config file.
  *	@return A strings vector containing splited servers contents.
 */
-std::vector<std::string> Parser::SplitServerContents(std::string &content)
+std::vector<std::string> Parser::SplitServerContents(const std::string &content)
 {
+	std::string					configFileContent = content;
 	std::vector<std::string>	serversContent;
 	std::vector<size_t>			start;
 	std::vector<size_t>			end;
 
-	_RemoveComments(content);
-	_RemoveWhiteSpaces(content);
+	_RemoveComments(configFileContent);
+	_RemoveWhiteSpaces(configFileContent);
 
-	for (size_t i = 0 ; i < content.length() ; i++)
+	for (size_t i = 0 ; i < configFileContent.length() ; i++)
 	{
-		if (!content.compare(i, 7, "server ") || !content.compare(i, 7, "server{")
-			|| !content.compare(i, 7, "server\t"))
-			start.push_back(content.find('{', i) + 1);
-		if (!content.compare(i, 7, "server ") || !content.compare(i, 7, "server{")
-			|| !content.compare(i, 7, "server\t") || content[i + 1] == '\0')
-			end.push_back(content.find_last_of('}', i) - 1);
+		if (!configFileContent.compare(i, 7, "server ") || !configFileContent.compare(i, 7, "server{")
+			|| !configFileContent.compare(i, 7, "server\t"))
+			start.push_back(configFileContent.find('{', i) + 1);
+		if (!configFileContent.compare(i, 7, "server ") || !configFileContent.compare(i, 7, "server{")
+			|| !configFileContent.compare(i, 7, "server\t") || configFileContent[i + 1] == '\0')
+			end.push_back(configFileContent.find_last_of('}', i) - 1);
 	}
 	
 	while (start.size() > 0)
 	{
-		serversContent.push_back(content.substr(start.back(), end.back() - start.back()));
+		serversContent.push_back(configFileContent.substr(start.back(), end.back() - start.back()));
 		start.pop_back();
 		end.pop_back();
 	}
@@ -181,7 +133,7 @@ void	Parser::ParseConfigFile(const std::string &configPath, Master &master)
 
 	while (serversContent.size() > 0)
 	{
-		std::vector<std::string>	parameters = Parser::SplitStr(serversContent.back(), ";{}");
+		std::vector<std::string>	parameters = Utils::SplitStr(serversContent.back(), ";{}");
 		Server	server;
 
 		Parser::_ParseServer(parameters, server);
@@ -210,7 +162,7 @@ void	Parser::_ParseServer(std::vector<std::string> &parameters, Server &server)
 	while (it != parameters.end())
 	{
 		std::string	parameter = *it;
-		Parser::TrimStr(parameter, " ");
+		Utils::TrimStr(parameter, " ");
 
 		if (parameter.find("listen") != std::string::npos)
 		{
@@ -242,6 +194,11 @@ void	Parser::_ParseServer(std::vector<std::string> &parameters, Server &server)
 			if (parameter[0] == '/')
 				parameter.erase(0, 1);
 			server.setIndex(parameter);
+		}
+		else if (parameter.find("client_max_body_size") != std::string::npos)
+		{
+			parameter.erase(0, 21);
+			server.setMaxBodySize(Utils::StrToInt(parameter));
 		}
 		else if (parameter.find("error_page 400 ") != std::string::npos)
 		{
@@ -342,7 +299,7 @@ void	Parser::_ParseLocations(std::vector<std::string> &parameters, Server &serve
 	for (std::vector<std::string>::iterator it = parameters.begin() ; it != parameters.end() ; it++)
 	{
 		std::string	parameter = *it;
-		Parser::TrimStr(parameter, " ");
+		Utils::TrimStr(parameter, " ");
 		Location	location;
 
 		if (it != parameters.end() && parameter.find("location") != std::string::npos)
@@ -350,10 +307,10 @@ void	Parser::_ParseLocations(std::vector<std::string> &parameters, Server &serve
 			parameter.erase(0, 9);
 			location.setLocation(parameter);
 
-			Parser::TrimStr(parameter = *(++it), " ");
+			Utils::TrimStr(parameter = *(++it), " ");
 			while (it != parameters.end() && parameter.find("location") == std::string::npos)
 			{
-				Parser::TrimStr(parameter = *it, " ");
+				Utils::TrimStr(parameter = *it, " ");
 
 				if (parameter.find("root") != std::string::npos)
 				{
@@ -377,17 +334,17 @@ void	Parser::_ParseLocations(std::vector<std::string> &parameters, Server &serve
 				else if (parameter.find("allow_methods") != std::string::npos)
 				{
 					parameter.erase(0, 14);
-					location.setAllowMethods(Parser::SplitStr(parameter, " "));
+					location.setAllowMethods(Utils::SplitStr(parameter, " "));
 				}
 				else if (parameter.find("cgi_path") != std::string::npos)
 				{
 					parameter.erase(0, 9);
-					location.setCgiPath(Parser::SplitStr(parameter, " "));
+					location.setCgiPath(Utils::SplitStr(parameter, " "));
 				}
 				else if (parameter.find("cgi_ext") != std::string::npos)
 				{
 					parameter.erase(0, 8);
-					location.setCgiExt(Parser::SplitStr(parameter, " "));
+					location.setCgiExt(Utils::SplitStr(parameter, " "));
 				}
 
 				if (it + 1 != parameters.end())

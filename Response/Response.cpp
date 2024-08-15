@@ -2,7 +2,8 @@
 #include "Response.hpp"
 
 
-/* ########## Constructors ########## */
+
+/* ################################## CONSTRUCTORS ################################## */
 
 Response::Response(void) {}
 
@@ -15,22 +16,20 @@ Response::Response(const Response &copy)
 Response::~Response(void) {}
 
 
-/* ########## Operator overload ########## */
 
-Response &Response::operator=(const Response &other)
+/* ############################## OPERATOR'S OVERLOADS ############################## */
+
+Response &Response::operator=(const Response &rhs)
 {
-	if (&other != this)
-		*this = other;
+	if (&rhs != this)
+		*this = rhs;
 	return (*this);
 }
 
 
-/* ########## Setters and getters ########## */
 
-
-
-
-/* ########## Member functions ########## */
+/* ################################ MEMBER FUNCTIONS ################################ */
+/* ############# GENERAL FUNCTIONS ############# */
 
 /*
  *	@brief	Sends response to the appropriate server according to the client's request.
@@ -42,15 +41,25 @@ Response &Response::operator=(const Response &other)
 int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string request, char **env)
 {
 	std::string					line = request.substr(0, request.find('\n'));
-	std::vector<std::string>	req = Parser::SplitStr(line, " ");
+	std::vector<std::string>	req = Utils::SplitStr(line, " ");
 	std::string					method = req[0];
 	Server						server = _GetServer(servers, request);
 	std::string					root = server.getRoot();
 	std::string					path = _GetPath(server, req[1]);
 	Location					location = _GetLocation(server, path);
+	size_t						maxBodySize = server.getMaxBodySize();
 	
 	if (!_CheckAutoIndex(server, location))
+	{
+		Logger::error("Auto-index is OFF but no index was specified.");
 		return (Forbidden403(fd));
+	}
+
+	if (!_CheckBodySize(request, maxBodySize))
+	{
+		Logger::error("The request's body size exceeds the body size limit.");
+		return (ContentTooLarge413(fd));
+	}
 
 	if (method == "GET" && _IsMethodAllowed(method, location))
 	{
@@ -63,9 +72,9 @@ int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string req
 		return (_HandlePost(fd, request, root, req[1], location));
 	else if (method == "POST" && _GetMethod(request) == "DELETE" && _IsMethodAllowed("DELETE", location))
 		return (_HandleDelete(fd, request, root));
-	else
-		return (MethodNotAllowed405(fd));
-	return (200);
+		
+	Logger::error("The request's method is not allowed.");
+	return (MethodNotAllowed405(fd));
 }
 
 /*
@@ -127,6 +136,9 @@ int	Response::_WritePage(int fd, const std::string &path, const std::string &typ
 	return (200);
 }
 
+
+/* ############ POST METHOD HANDLER ############ */
+
 /*
  *	@brief Upload a file into the server, creates the file, and sends a success page in case of success.
  *	@param fd The socket's file descriptor.
@@ -136,10 +148,10 @@ int	Response::_WritePage(int fd, const std::string &path, const std::string &typ
  *	@return	200 in case of success, 500 in case of error.
 */
 int Response::_HandlePost(int fd, const std::string &request, const std::string &root, \
-							const std::string &path, Location &location)
+					const std::string &path, const Location &location)
 {
-    std::string		boundary = _GetBoundary(request);
     std::string		body = request.substr(request.find("\r\n\r\n") + 4);
+    std::string		boundary = _GetBoundary(request);
     std::string		filename = _ExtractFilename(body);
     std::string		fileData = _ExtractFileData(body, boundary);
 
@@ -216,7 +228,7 @@ std::string Response::_ExtractFilename(const std::string &body)
 bool	Response::_CheckExtension(const std::string &filename, const std::vector<std::string> &ext)
 {
 	std::string	name = filename;
-	std::vector<std::string>	splittedFilename = Parser::SplitStr(name, ".");
+	std::vector<std::string>	splittedFilename = Utils::SplitStr(name, ".");
 
 	if (splittedFilename.size() > 2)
 		return (false);
@@ -314,6 +326,9 @@ void	Response::_UpdateUploadsPage(const std::string &root)
 		Logger::error("Failed to update uploads.html.");
 }
 
+
+/* ########### DELETE METHOD HANDLER ########### */
+
 /*
  *	@brief Deletes a file from uploaded files.
  *	@param fd The socket's file descriptor.
@@ -359,6 +374,9 @@ std::string	Response::_GetFilePathToDelete(const std::string &request)
 	return (pathToDelete);
 }
 
+
+/* ################ CGI HANDLER ################ */
+
 /*
  *	@brief Handle CGI GET requests.
  *	@param fd The socket's file descriptor.
@@ -367,7 +385,7 @@ std::string	Response::_GetFilePathToDelete(const std::string &request)
  *	@param location The CGI location.
  *	@return The appropriate status code.
 */
-int	Response::_HandleCgi(int fd, const std::string &root, std::string &path, Location &location, char **env)
+int	Response::_HandleCgi(int fd, const std::string &root, std::string &path, const Location &location, char **env)
 {
 	
 	path.erase(9, 18);
@@ -392,7 +410,7 @@ int	Response::_HandleCgi(int fd, const std::string &root, std::string &path, Loc
 	}
 
 	std::string	content;
-	if (Cgi::getResponse(path, cgiPath, content, env) < 0)
+	if (Cgi::getContent(path, cgiPath, content, env) < 0)
 		return (InternalServerError500(fd));
 	
 	std::string	contentType = "text/plain";
@@ -454,6 +472,9 @@ void	Response::_GenerateCgiPage(const std::string &root, const std::string &path
 	}
 }
 
+
+/* ############# GENERAL FUNCTIONS ############# */
+
 /*
  *	@brief Gets the extension from a file.
  *	@param path The file's path from request.
@@ -462,7 +483,7 @@ void	Response::_GenerateCgiPage(const std::string &root, const std::string &path
 std::string	Response::_GetExtension(const std::string &path)
 {
 	std::string					ext = path;
-	std::vector<std::string>	splitted = Parser::SplitStr(ext, ".");
+	std::vector<std::string>	splitted = Utils::SplitStr(ext, ".");
 
 	if (splitted.size() == 1)
 		return ("");
@@ -478,7 +499,7 @@ std::string	Response::_GetExtension(const std::string &path)
  *	@param	request	The request.
  *	@return	The corresponding server.
 */
-Server	Response::_GetServer(std::vector<Server> &servers, const std::string &request)
+Server	Response::_GetServer(const std::vector<Server> &servers, const std::string &request)
 {
 	Server	server = servers[0];
 	int 	port = _GetPort(request);
@@ -500,7 +521,7 @@ Server	Response::_GetServer(std::vector<Server> &servers, const std::string &req
  *	@param	request	The request.
  *	@return	The server's port.
 */
-std::string	Response::_GetPath(Server &server, const std::string &subPath)
+std::string	Response::_GetPath(const Server &server, const std::string &subPath)
 {
 	std::string	root = server.getRoot();
 	if (root[root.length() - 1] == '/')
@@ -548,7 +569,7 @@ std::string	Response::_GetContentType(const std::string &request, const std::str
 	size_t						start = request.find("Accept:") + 8;
 	size_t						end = request.find(";", start) - 1;
 	std::string					line = request.substr(start, end - start + 1);
-	std::vector<std::string>	types = Parser::SplitStr(line, ",");
+	std::vector<std::string>	types = Utils::SplitStr(line, ",");
 
 	std::string					ext = path.substr(path.find(".") + 1);
 	if (ext == "jpg")
@@ -558,7 +579,7 @@ std::string	Response::_GetContentType(const std::string &request, const std::str
 
 	for (std::vector<std::string>::iterator it = types.begin() ; it != types.end() ; it++)
 	{
-		std::vector<std::string>	type = Parser::SplitStr(*it, "/");
+		std::vector<std::string>	type = Utils::SplitStr(*it, "/");
 		if (type[1] == ext)
 		{
 			contentType = *it;
@@ -580,7 +601,7 @@ std::string	Response::_GetContentType(const std::string &request, const std::str
  *	@param	path The request's path.
  *	@return	The current location.
 */
-Location		Response::_GetLocation(Server &server, const std::string &path)
+Location		Response::_GetLocation(const Server &server, const std::string &path)
 {
 	Location	location;
 
@@ -621,7 +642,7 @@ bool	Response::_IsMethodAllowed(const std::string &method, Location &location)
  *	@param	location	The location.
  *	@return	TRUE if the method is allowed, FALSE if not.
 */
-bool	Response::_CheckAutoIndex(Server &server, Location &location)
+bool	Response::_CheckAutoIndex(const Server &server, const Location &location)
 {
 	bool	autoIndex = location.getAutoIndex();
 
@@ -668,6 +689,31 @@ std::string	Response::_GetMethod(const std::string &request)
 
 	return (method);
 }
+
+/*
+ *	@brief Checks if a request's body size is not too big.
+ *	@request The request.
+ *	@return TRUE if the request's body size is ok, FALSE if it's too large.
+*/
+bool	Response::_CheckBodySize(const std::string &request, size_t maxBodySize)
+{
+	size_t	start = request.find("Content-Length: ");
+	if (start == std::string::npos)
+		return (true);
+
+	size_t	end = request.find("\r\n", start);
+
+	size_t	contentLength = Utils::StrToSizeT(request.substr(start + 16, end - (start + 16)));
+	if (maxBodySize && contentLength > maxBodySize)
+		return (false);
+	else if (!maxBodySize && contentLength > MAX_BODY_SIZE)
+		return (false);
+	
+	return (true);
+}
+
+
+/* ################ ERROR PAGES ################ */
 
 /*
  *	@brief	Displays the error 400 page.

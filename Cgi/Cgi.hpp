@@ -16,7 +16,8 @@ private:
 public:
 	~Cgi(void);
 
-	static int			getResponse(std::string &filepath, std::string &cgiPath, std::string &response, char **env);
+	static int			getContent(const std::string &filepath, const std::string &cgiPath, \
+										std::string &content, char **env);
 	static std::string	GenerateCgiPage();
 };
 

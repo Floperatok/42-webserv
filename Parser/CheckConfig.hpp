@@ -9,9 +9,6 @@ class Parser;
 class CheckConfig
 {
 	public:
-		// Constructors
-		~CheckConfig();
-
 		// Methods
 		static void CheckConfigFile(const std::string &path);
 
@@ -60,10 +57,11 @@ class CheckConfig
 		CheckConfig();
 		CheckConfig(const CheckConfig &toCopy);
 		CheckConfig &operator=(const CheckConfig &rhs);
+		~CheckConfig();
 
 		// Methods
-		static bool _CheckBrackets(std::string &content);
-		static bool _IsInsideBrackets(std::string &content, size_t index);
-		static bool _CheckServerKeywords(std::string &content);
-		static void _CheckKeywords(std::string &content);
+		static bool _CheckBrackets(const std::string &content);
+		static bool _IsInsideBrackets(const std::string &content, size_t index);
+		static bool _CheckServerKeywords(const std::string &content);
+		static void _CheckKeywords(const std::string &content);
 };

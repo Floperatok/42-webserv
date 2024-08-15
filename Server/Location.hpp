@@ -29,11 +29,11 @@ class Location
 		const std::vector<std::string>	&getCgiExt() const;
 
 	private:
-		std::string					_location;
-		std::string					_root;
-		std::string					_index;
-		bool						_autoIndex;
-		std::vector<std::string>	_allowMethods;
-		std::vector<std::string>	_cgiPath;
-		std::vector<std::string>	_cgiExt;
+		std::string						_location;
+		std::string						_root;
+		std::string						_index;
+		bool							_autoIndex;
+		std::vector<std::string>		_allowMethods;
+		std::vector<std::string>		_cgiPath;
+		std::vector<std::string>		_cgiExt;
 };

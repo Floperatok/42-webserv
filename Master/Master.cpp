@@ -217,12 +217,6 @@ int Master::_readSocket(const int sockfd, std::string &receivedData)
 
 			return (1);
         }
-		else if (totalBytesRead >= MAX_REQUEST_SIZE)
-        {
-            Logger::error("Request size exceeds the maximum limit.");
-			Response::ContentTooLarge413(sockfd);
-            return (0);
-        }
     }
 }
 

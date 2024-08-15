@@ -1,23 +1,9 @@
-
 #include "Master.hpp"
+#include "Logger.hpp"
 #include "CheckConfig.hpp"
 #include "Server.hpp"
-#include "Logger.hpp"
 
-std::vector<Server>	tempServerInit(const unsigned int n)
-{
-	std::vector<Server>	servers;
-
-	for (unsigned int i = 0; i < n; i++)
-	{
-		Server	server;
-		server.setPort(8000 + i);
-		servers.push_back(server);
-	}
-	return (servers);
-}
-
-int main(int argc, char **argv, char **env)
+int	main(int argc, char **argv, char **env)
 {
 	std::string	configFilePath = "Config/config.conf";
 	if (argc == 2)
@@ -50,19 +36,3 @@ int main(int argc, char **argv, char **env)
 
 	return (EXIT_SUCCESS);
 }
-
-// int main(void)
-// {
-// 	try
-// 	{
-// 		std::vector<Server> servers = tempServerInit(2);
-// 		Master master(servers);
-// 		master.setupServers();
-// 		master.runServers();
-// 	}
-// 	catch(const std::exception& e)
-// 	{
-// 		Logger::error(e.what());
-// 	}
-// 	return (0);
-// }

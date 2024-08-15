@@ -10,26 +10,16 @@ class Master;
 class Parser
 {
 	public:
-		// Constructors
-		~Parser();
-
-		// Getters and setters
-
 		// Methods
-		static std::vector<std::string> SplitStr(std::string &str, const char *charset);
-		static void TrimStr(std::string &str, const char *charset);
-		static std::vector<std::string> SplitServerContents(std::string &content);
+		static std::vector<std::string> SplitServerContents(const std::string &content);
 		static void	ParseConfigFile(const std::string &configPath, Master &master);
 		
-
-		// Exceptions
-		
-
 	private:
 		// Constructors
 		Parser();
 		Parser(const Parser &toCopy);
 		Parser &operator=(const Parser &rhs);
+		~Parser();
 
 		// Methods
 		static void _RemoveComments(std::string &content);

@@ -2,7 +2,8 @@
 #include "Cgi.hpp"
 
 
-/* ########## Constructor ########## */
+
+/* ################################## CONSTRUCTORS ################################## */
 
 Cgi::Cgi(void)
 {
@@ -19,7 +20,8 @@ Cgi::~Cgi(void)
 }
 
 
-/* ########## Operator overload ########## */
+
+/* ############################## OPERATOR'S OVERLOADS ############################## */
 
 Cgi &Cgi::operator=(const Cgi &other)
 {
@@ -31,12 +33,18 @@ Cgi &Cgi::operator=(const Cgi &other)
 }
 
 
-/* ########## Setter/Getter ########## */
 
+/* ################################ MEMBER FUNCTIONS ################################ */
 
-/* ########## Member function ########## */
-
-int	Cgi::getResponse(std::string &filepath, std::string &cgiPath, std::string &response, char **env)
+/*
+ *	@brief Fills the request's content for CGI Scripts.
+ *	@param filepath The CGI script's path.
+ *	@param cgiPath The path of the binary needed to execute the script.
+ *	@param content The content to fill.
+ *	@param env The environnement to use.
+ *	@return 0 in case of success, -1 in case of error. 
+*/
+int	Cgi::getContent(const std::string &filepath, const std::string &cgiPath, std::string &content, char **env)
 {
 	pid_t	pid;
 	int		pipeFd[2];
@@ -118,7 +126,7 @@ int	Cgi::getResponse(std::string &filepath, std::string &cgiPath, std::string &r
 			
 			close(pipeFd2[1]);
 			while ((bytesread = read(pipeFd2[0], buffer, BUFFER_SIZE)) > 0) {
-				response.append(buffer, bytesread);
+				content.append(buffer, bytesread);
 			}
 			if (bytesread < 0)
 				throw (Logger::FunctionError("read", -1));
@@ -136,7 +144,7 @@ int	Cgi::getResponse(std::string &filepath, std::string &cgiPath, std::string &r
 				if (bytesread < 0)
 					throw (Logger::FunctionError("read", -1));
 				if (bytesread > 0)
-					response.append(buffer, bytesread);
+					content.append(buffer, bytesread);
 				bytesread = read(pipeFd[0], buffer, BUFFER_SIZE);
 			} while (bytesread != 0);
 		}
@@ -225,9 +233,3 @@ std::string	Cgi::GenerateCgiPage()
 
 	return pageContent.str();
 }
-
-/* ########## Exception ########## */
-
-
-/* ########## Non-member function ########## */
-

@@ -1,8 +1,8 @@
+#pragma once
 
-#ifndef LOGGER_HPP
-# define LOGGER_HPP
+#include "Libs.hpp"
 
-# define VERBOSE 1
+#define VERBOSE 1
 
 enum	Color {
 	BLACK	= 30,
@@ -16,23 +16,23 @@ enum	Color {
 	RESET	= 0
 };
 
-# include "Libs.hpp"
-
 class Logger
 {
 private:
+	// Constructors
 	Logger(void);
 	Logger(const Logger &copy);
 	Logger &operator=(const Logger &other);
-
-public:
 	~Logger(void);
 
+public:
+	// Members
 	static void	debug(const char *msg, int tagColor = RESET, int textColor = RESET);
 	static void	info(const char *msg, int tagColor = CYAN, int textColor = RESET);
 	static void	warning(const char *msg, int tagColor = YELLOW, int textColor = RESET);
 	static void	error(const char *msg, int tagColor = RED, int textColor = RESET);
 
+	// Exceptions
 	class FunctionError : public std::exception
 	{
 	private:
@@ -43,5 +43,3 @@ public:
 		virtual const char	*what(void) const throw();
 	};
 };
-
-#endif

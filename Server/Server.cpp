@@ -1,28 +1,13 @@
-
 #include "Server.hpp"
 
 
-/* ########## Constructor ########## */
 
-Server::Server(void)
-{
-	_port = -1;
-	_sockfd = -1;
-	_serverName = "";
-	_root = "";
-	_index = "";
-	_errorPage400 = "";
-	_errorPage403 = "";
-	_errorPage404 = "";
-	_errorPage405 = "";
-	_errorPage408 = "";
-	_errorPage413 = "";
-	_errorPage500 = "";
-	_errorPage501 = "";
-	_errorPage502 = "";
-	_errorPage503 = "";
-	_errorPage504 = "";
-}
+/* ################################## CONSTRUCTORS ################################## */
+
+Server::Server(void) : _port(-1), _serverName(""), _root(""), _index(""), _maxBodySize(0),
+			_errorPage400(""), _errorPage403(""), _errorPage404(""), _errorPage405(""),
+			_errorPage408(""), _errorPage413(""), _errorPage500(""), _errorPage501(""),
+			_errorPage502(""), _errorPage503(""), _errorPage504(""), _sockfd(-1) { }
 
 Server::Server(const Server &copy)
 {
@@ -36,7 +21,8 @@ Server::~Server(void)
 }
 
 
-/* ########## Operator overload ########## */
+
+/* ############################## OPERATOR'S OVERLOADS ############################## */
 
 Server &Server::operator=(const Server &other)
 {
@@ -47,6 +33,7 @@ Server &Server::operator=(const Server &other)
 		_host						= other._host;
 		_root						= other._root;
 		_index						= other._index;
+		_maxBodySize				= other._maxBodySize;
 		_errorPage400				= other._errorPage400;
 		_errorPage403				= other._errorPage403;
 		_errorPage404				= other._errorPage404;
@@ -68,7 +55,8 @@ Server &Server::operator=(const Server &other)
 }
 
 
-/* ########## Setter/Getter ########## */
+
+/* ############################## GETTERS AND SETTERS ############################### */
 
 void	Server::setPort(const int port) {	_port = port;	}
 const int	&Server::getPort(void) const {	return (_port);	}
@@ -84,6 +72,9 @@ const std::string	&Server::getRoot() const {	return (_root);	}
 
 void	Server::setIndex(std::string &index) {	_index = index;	}
 const std::string	&Server::getIndex() const {	return (_index);	}
+
+void	Server::setMaxBodySize(size_t maxBodySize) {	_maxBodySize = maxBodySize;	}
+size_t	Server::getMaxBodySize() const {	return (_maxBodySize);	}
 
 void	Server::setErrorPage400(std::string &errorPage400) {	_errorPage400 = errorPage400;	}
 const std::string	&Server::getErrorPage400() const {	return (_errorPage400);	}
@@ -126,7 +117,8 @@ void	Server::setLocations(std::vector<Location> &locations) {	_locations = locat
 const std::vector<Location>	&Server::getLocations() const {	return (_locations);	}
 
 
-/* ########## Member functions ########## */
+
+/* ################################ MEMBER FUNCTIONS ################################ */
 
 /*
  *	@brief Setups the server's adress structure.
@@ -140,60 +132,138 @@ void	Server::_setupServAddr(void)
 }
 
 /*
+ *	@brief Displays a line formatted to start and end with '*' and to be centered.
+ *	@param text The text to display.
+ *	@param fillWithStars Set on TRUE if you want to fill the line with '*' instead of spaces. Optional, defaults to FALSE.
+ *	@param fieldWidth The length of the resulted line. Optional, defaults to 70 characters.
+*/
+void Server::_printFormattedLine(const std::string &text, bool fillWithStars, unsigned int fieldWidth) const
+{
+    int totalWidth = fieldWidth - 2;
+    int textLength = text.length();
+
+	if (textLength > totalWidth)
+	{
+		_printFormattedLine(text.substr(0, totalWidth - 4));
+		_printFormattedLine(text.substr(totalWidth - 3));
+		return ;
+	}
+    int leftPadding = (totalWidth - textLength) / 2;
+	int	rightPadding = (totalWidth - textLength) - leftPadding;
+
+    std::string formattedText = "*";
+	if (fillWithStars)
+	{
+		formattedText.append(leftPadding, '*');
+		formattedText += text;
+		formattedText.append(rightPadding + 1, '*');
+	}
+	else
+	{
+		formattedText.append(leftPadding, ' ');
+		formattedText += text;
+		formattedText.append(rightPadding, ' ');
+		formattedText += "*";
+	}
+
+    Logger::info(formattedText.c_str());
+}
+
+/*
  *	@bried Prints Server's attributes.
 */
 void	Server::printServerAttributes() const
 {
-	Logger::debug("--------------- SERVER INFOS ---------------");
+	Logger::info("");
+	_printFormattedLine("", true);
+	_printFormattedLine("SERVER INFOS");
+	_printFormattedLine("", true);
 
-	std::string	str = "Server name: " + _serverName + " | Port: " + Utils::IntToStr(_port);
-	Logger::debug(str.c_str());
+	_printFormattedLine("");
+	_printFormattedLine("Server name: " + _serverName);
+	_printFormattedLine("Port: " + Utils::IntToStr(_port));
 
-	char	hostIP[20] = "";
+	char	hostIP[INET_ADDRSTRLEN];
 	inet_ntop(AF_INET, &(_host), hostIP, INET_ADDRSTRLEN);
-	str = "Host: " + std::string(hostIP) + " | Root: " + _root;
-	Logger::debug(str.c_str());
+	_printFormattedLine("Host: " + std::string(hostIP));
 
-	str = "Index: " + _index + " | Error page 404: " + _errorPage404;
-	Logger::debug(str.c_str());
+	_printFormattedLine("Root: " + _root);
 
-	std::vector<Location>	locations = _locations;
+	std::string indexInfo = "Index: " + _index;
+	_printFormattedLine(indexInfo);
+
+	std::vector<std::string> errorPages;
+	if (!_errorPage400.empty()) errorPages.push_back(_errorPage400);
+	if (!_errorPage403.empty()) errorPages.push_back(_errorPage403);
+	if (!_errorPage404.empty()) errorPages.push_back(_errorPage404);
+	if (!_errorPage405.empty()) errorPages.push_back(_errorPage405);
+	if (!_errorPage408.empty()) errorPages.push_back(_errorPage408);
+	if (!_errorPage413.empty()) errorPages.push_back(_errorPage413);
+	if (!_errorPage500.empty()) errorPages.push_back(_errorPage500);
+	if (!_errorPage501.empty()) errorPages.push_back(_errorPage501);
+	if (!_errorPage502.empty()) errorPages.push_back(_errorPage502);
+	if (!_errorPage503.empty()) errorPages.push_back(_errorPage503);
+	if (!_errorPage504.empty()) errorPages.push_back(_errorPage504);
+
+	std::string errorPagesStr = "Error pages: ";
+	for (size_t i = 0; i < errorPages.size(); ++i)
+	{
+		if (i > 0) errorPagesStr += ", ";
+		errorPagesStr += errorPages[i];
+	}
+	_printFormattedLine(errorPagesStr);
+
+	std::vector<Location> locations = _locations;
 	for (std::vector<Location>::iterator it = locations.begin() ; it != locations.end() ; it++)
 	{
 		Location location = *it;
 
-		str = "--------------- Location " + location.getLocation();
-		Logger::debug(str.c_str());
-		
-		str = "Root: " + location.getRoot() + " | Index: " + location.getIndex() + " | Auto-Index: ";
-		if (location.getAutoIndex())
-			str += "ON";
-		else
-			str += "OFF";
-		Logger::debug(str.c_str());
+		_printFormattedLine("");
+		_printFormattedLine(" Location '" + location.getLocation() + "' ", true);
+		_printFormattedLine("");
 
-		str = "Allow methods: ";
-		std::vector<std::string> allowMethods = location.getAllowMethods();
+		if (!location.getRoot().empty())
+			_printFormattedLine("Root: " + location.getRoot());
+
+		if (!location.getIndex().empty())
+			_printFormattedLine("Index: " + location.getIndex());
+
+		std::string autoIndexStr = "Auto-index: " + std::string(location.getAutoIndex() ? "ON" : "OFF");
+		_printFormattedLine(autoIndexStr);
+
+		std::string					allowMethodsStr = "Allow methods: ";
+		std::vector<std::string>	allowMethods = location.getAllowMethods();
 		for (std::vector<std::string>::iterator ite = allowMethods.begin() ; ite != allowMethods.end() ; ite++)
-			str += *ite += " ";
-		Logger::debug(str.c_str());
+			allowMethodsStr += *ite + " ";
+		_printFormattedLine(allowMethodsStr);
 
-		str = "CGI Path: ";
-		std::vector<std::string> cgiPath = location.getCgiPath();
-		for (std::vector<std::string>::iterator ite = cgiPath.begin() ; ite != cgiPath.end() ; ite++)
-			str += *ite += " ";
-		str += " | CGI Ext: ";
-		std::vector<std::string> cgiExt = location.getCgiExt();
-		for (std::vector<std::string>::iterator ite = cgiExt.begin() ; ite != cgiExt.end() ; ite++)
-			str += *ite += " ";
-		Logger::debug(str.c_str());
+		std::vector<std::string>	cgiPath = location.getCgiPath();
+		if (!cgiPath.empty())
+		{
+			std::string cgiPathStr = "CGI Paths: ";
+			for (std::vector<std::string>::iterator ite = cgiPath.begin() ; ite != cgiPath.end() ; ite++)
+				cgiPathStr += *ite + " ";
+			_printFormattedLine(cgiPathStr);
+		}
+
+		std::vector<std::string>	cgiExt = location.getCgiExt();
+		if (!cgiExt.empty())
+		{
+			std::string cgiExtStr = "CGI Ext: ";
+			for (std::vector<std::string>::iterator ite = cgiExt.begin() ; ite != cgiExt.end() ; ite++)
+				cgiExtStr += *ite + " ";
+			_printFormattedLine(cgiExtStr);
+		}
 	}
 
-	Logger::debug("");
+	_printFormattedLine("");
+	_printFormattedLine("", true);
+	Logger::info("");
 }
 
 /*
  *	@brief Setups a server by creating socket and setting up the server's adress.
+ *	@return TRUE in case of success, FALSE in case of error.
 */
 bool	Server::setup(void)
 {

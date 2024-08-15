@@ -26,25 +26,26 @@ class Response
 		// Constructors
 		Response(void);
 		Response(const Response &copy);
-		Response &operator=(const Response &other);
+		Response &operator=(const Response &rhs);
 
 		// Send Response Methods
-		static Server		_GetServer(std::vector<Server> &servers, const std::string &request);
-		static std::string	_GetPath(Server &server, const std::string &subPath);
+		static Server		_GetServer(const std::vector<Server> &servers, const std::string &request);
+		static std::string	_GetPath(const Server &server, const std::string &subPath);
 		static int			_GetPort(const std::string &request);
 		static std::string	_GetContentType(const std::string &request, const std::string &path);
-		static Location		_GetLocation(Server &server, const std::string &path);
+		static Location		_GetLocation(const Server &server, const std::string &path);
 		static bool			_IsMethodAllowed(const std::string &method, Location &location);
-		static bool			_CheckAutoIndex(Server &server, Location &location);
+		static bool			_CheckAutoIndex(const Server &server, const Location &location);
 		static std::string	_GetMethod(const std::string &request);
+		static bool			_CheckBodySize(const std::string &request, size_t maxBodySize);
 
 		// GET Methods
 		static int			_WritePage(int fd, const std::string &path, const std::string &type, \
 										const std::string &status, bool recursed = false);
 		
 		// POST Methods
-		static int			_HandlePost(int fd, const std::string &request, \
-										const std::string &root, const std::string &path, Location &location);
+		static int			_HandlePost(int fd, const std::string &request,	const std::string &root, \
+										const std::string &path, const Location &location);
 		static std::string	_GetBoundary(const std::string &request);
 		static std::string	_ExtractFilename(const std::string &body);
 		static bool			_CheckExtension(const std::string &filename, const std::vector<std::string> &ext);
@@ -58,7 +59,7 @@ class Response
 
 		// CGI
 		static int			_HandleCgi(int fd, const std::string &root, std::string &path, \
-										Location &location, char **env);
+										const Location &location, char **env);
 		static void			_GenerateCgiPage(const std::string &root, const std::string &path);
 		static std::string	_GetExtension(const std::string &path);
 

@@ -2,7 +2,7 @@
 
 // DEFINES
 # define BUFFER_SIZE		4096
-# define MAX_REQUEST_SIZE	1048576
+# define MAX_BODY_SIZE		1048576
 # define MAX_CLIENT			1024
 # define TIMEOUT			10000
 

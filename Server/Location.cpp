@@ -1,6 +1,9 @@
 #include "Location.hpp"
 
-/* ########## Constructors ########## */
+
+
+/* ################################## CONSTRUCTORS ################################## */
+
 Location::Location() : _location(""), _root(""), _index(""), _autoIndex(false) {}
 
 Location::Location(const Location &toCopy)
@@ -35,7 +38,9 @@ Location	&Location::operator=(const Location &rhs)
 Location::~Location() {}
 
 
-/* ########## Getters and setters ########## */
+
+/* ############################## GETTERS AND SETTERS ############################### */
+
 void	Location::setLocation(const std::string &location) {	_location = location;	}
 const std::string	&Location::getLocation() const {	return (_location);	}
 

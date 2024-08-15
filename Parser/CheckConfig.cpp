@@ -1,6 +1,9 @@
 #include "CheckConfig.hpp"
 
-/* ########## Constructors ########## */
+
+
+/* ################################## CONSTRUCTORS ################################## */
+
 CheckConfig::CheckConfig() {}
 
 CheckConfig::CheckConfig(const CheckConfig &toCopy)
@@ -19,7 +22,8 @@ CheckConfig &CheckConfig::operator=(const CheckConfig &rhs)
 CheckConfig::~CheckConfig() {}
 
 
-/* ########## Member functions ########## */
+
+/* ################################ MEMBER FUNCTIONS ################################ */
 
 /*
  *	@brief Check for the validity of a config file.
@@ -58,7 +62,7 @@ void CheckConfig::CheckConfigFile(const std::string &path)
  *	@param content The string content to check.
 *	@return TRUE if brackets are well closed, FALSE if not.
 */
-bool CheckConfig::_CheckBrackets(std::string &content)
+bool CheckConfig::_CheckBrackets(const std::string &content)
 {
 	std::stack<char>	tmp;
 
@@ -80,14 +84,13 @@ bool CheckConfig::_CheckBrackets(std::string &content)
 	return (true);
 }
 
-
 /*
  *	@brief Checks if a position of a string content is inside brackets.
  *	@param content The string content to check.
  *	@param pos The string content.
  *	@return TRUE if inside brackets, FALSE if not.
 */
-bool CheckConfig::_IsInsideBrackets(std::string &content, size_t pos)
+bool CheckConfig::_IsInsideBrackets(const std::string &content, size_t pos)
 {
 	std::stack<char>	tmp;
 
@@ -113,7 +116,7 @@ bool CheckConfig::_IsInsideBrackets(std::string &content, size_t pos)
  *	@param content The string content to check.
  *	@return TRUE if the keyword is 'server', FALSE if not.
 */
-bool CheckConfig::_CheckServerKeywords(std::string &content)
+bool CheckConfig::_CheckServerKeywords(const std::string &content)
 {
 	std::string keyword = "";
 	size_t i = 0;
@@ -145,7 +148,7 @@ bool CheckConfig::_CheckServerKeywords(std::string &content)
  *	@param content The string content to check.
  *	@return TRUE if the content is valid, FALSE if not.
 */
-void CheckConfig::_CheckKeywords(std::string &content)
+void CheckConfig::_CheckKeywords(const std::string &content)
 {
 	std::vector<std::string>	serversContent = Parser::SplitServerContents(content);
 	std::string					serverContent;
@@ -165,12 +168,12 @@ void CheckConfig::_CheckKeywords(std::string &content)
 		if (serverContent.find("host") == std::string::npos)
 			throw (MissingParameterException("Host not found."));
 
-		parameters = Parser::SplitStr(serverContent, ";{}");
+		parameters = Utils::SplitStr(serverContent, ";{}");
 
 		for (std::vector<std::string>::iterator it = parameters.begin() ; it != parameters.end() ; it++)
 		{
 			std::string	parameter = *it;
-			Parser::TrimStr(parameter, " ");
+			Utils::TrimStr(parameter, " ");
 
 			if (parameter.find("listen") != std::string::npos)
 			{
@@ -195,7 +198,7 @@ void CheckConfig::_CheckKeywords(std::string &content)
 				parameter.erase(0, 5);
 				if (parameter.find(' ') != std::string::npos \
 					|| (parameter.find("localhost") == std::string::npos \
-					&& Parser::SplitStr(parameter, ".").size() != 4))
+					&& Utils::SplitStr(parameter, ".").size() != 4))
 					throw (WrongParameterException("Invalid host '" + parameter + "'."));
 			}
 			else if (parameter.find("root") != std::string::npos)
@@ -219,12 +222,20 @@ void CheckConfig::_CheckKeywords(std::string &content)
 				if (index == "")
 					index = parameter;
 			}
+			else if (parameter.find("client_max_body_size") != std::string::npos)
+			{
+				if (parameter[20] != ' ')
+					throw (WrongParameterException("Invalid client_max_body_size '" + parameter + "'."));
+				parameter.erase(0, 21);
+				if (parameter.find_first_not_of("0123456789") != std::string::npos)
+					throw (WrongParameterException("Invalid client_max_body_size '" + parameter + "'."));
+			}
 			else if (parameter.find("error_page") != std::string::npos)
 			{
 				if (parameter[10] != ' ')
 					throw (WrongParameterException("Invalid error page '" + parameter + "'."));
 				parameter.erase(0, 11);
-				std::vector<std::string>	errorPage = Parser::SplitStr(parameter, " ");
+				std::vector<std::string>	errorPage = Utils::SplitStr(parameter, " ");
 				if (errorPage.size() != 2 || errorPage[0].find_first_not_of("0123456789") != std::string::npos)
 					throw (WrongParameterException("Invalid error page '" + parameter + "'."));
 				errorPagePaths.push_back(errorPage[1]);
@@ -248,14 +259,14 @@ void CheckConfig::_CheckKeywords(std::string &content)
 				if (parameter[8] != ' ')
 					throw (WrongParameterException("Invalid cgi_path '" + parameter + "'."));
 				parameter.erase(0, 9);
-				cgiPaths = Parser::SplitStr(parameter, " ");
+				cgiPaths = Utils::SplitStr(parameter, " ");
 			}
 			else if (parameter.find("cgi_ext") != std::string::npos)
 			{
 				if (parameter[7] != ' ')
 					throw (WrongParameterException("Invalid cgi_ext '" + parameter + "'."));
 				parameter.erase(0, 8);
-				cgiExts = Parser::SplitStr(parameter, " ");
+				cgiExts = Utils::SplitStr(parameter, " ");
 			}
 		}
 		
@@ -282,42 +293,76 @@ void CheckConfig::_CheckKeywords(std::string &content)
 }
 
 
-/* ########## Exceptions ########## */
+
+/* ################################### EXCEPTIONS ################################### */
+
+/*
+ *	@brief Exception for files who cannot open.
+ *	@return The error message.
+*/
 const char	*CheckConfig::FileNotOpenedException::what() const throw()
 {
 	return ("Config file: Cannot open file.");
 }
 
+/*
+ *	@brief Exception for unclosed brackets
+ *	@return The error message.
+*/
 const char	*CheckConfig::UnclosedBracketsException::what() const throw()
 {
 	return ("Config file: Found unclosed brackets.");
 }
 
+/*
+ *	@brief Exception for empty file.
+ *	@return The error message.
+*/
 const char	*CheckConfig::EmptyFileException::what() const throw()
 {
 	return ("Config file: Empty file.");
 }
 
+/*
+ *	@brief Exception for wrong keyword.
+ *	@return The error message.
+*/
 const char	*CheckConfig::WrongKeywordException::what() const throw()
 {
 	return ("Config file: Wrong keyword before brackets.");
 }
 
+/*
+ *	@brief Exception for missing parameter.
+ *	@param message The error message.
+*/
 CheckConfig::MissingParameterException::MissingParameterException(std::string message) throw()
 {
 	_msg = "Config file: " + message;
 }
 
+/*
+ *	@brief Exception for missing parameter.
+ *	@return The error message.
+*/
 const char *CheckConfig::MissingParameterException::what() const throw()
 {
 	return (_msg.c_str());
 }
 
+/*
+ *	@brief Exception for wrong parameter.
+ *	@param message The error message.
+*/
 CheckConfig::WrongParameterException::WrongParameterException(std::string message) throw()
 {
 	_msg = "Config file: " + message;
 }
 
+/*
+ *	@brief Exception for wrong parameter.
+ *	@return The error message.
+*/
 const char *CheckConfig::WrongParameterException::what() const throw()
 {
 	return (_msg.c_str());

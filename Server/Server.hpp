@@ -12,12 +12,12 @@ class Server
 {
 private:
 	// Attributes
-	static const int		_BUFFSIZE = 4096;
 	int						_port;
 	std::string				_serverName;
 	in_addr_t				_host;
 	std::string				_root;
 	std::string				_index;
+	size_t					_maxBodySize;
 	std::string				_errorPage400;
 	std::string				_errorPage403;
 	std::string				_errorPage404;
@@ -34,7 +34,9 @@ private:
 	std::vector<Location>	_locations;
 	
 	// Methods
-	void	_setupServAddr(void);
+	void						_setupServAddr(void);
+	void						_printFormattedLine(const std::string &text, bool fillWithStars = false, \
+													unsigned int fieldWidth = 70) const;
 public:
 	// Constructors
 	Server(void);
@@ -54,6 +56,8 @@ public:
 	const std::string			&getRoot() const;
 	void						setIndex(std::string &index);
 	const std::string			&getIndex() const;
+	void						setMaxBodySize(size_t maxBodySize);
+	size_t						getMaxBodySize() const;
 	void						setErrorPage400(std::string &errorPage404);
 	const std::string			&getErrorPage400() const;
 	void						setErrorPage403(std::string &errorPage404);

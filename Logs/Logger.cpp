@@ -1,12 +1,10 @@
-
 #include "Logger.hpp"
 
 
-/* ########## Constructor ########## */
 
-Logger::Logger(void)
-{
-}
+/* ################################## CONSTRUCTORS ################################## */
+
+Logger::Logger(void) {}
 
 Logger::Logger(const Logger &copy)
 {
@@ -14,28 +12,30 @@ Logger::Logger(const Logger &copy)
 		*this = copy;
 }
 
-Logger::~Logger(void)
-{
-}
+Logger::~Logger(void) {}
 
 
-/* ########## Operator overload ########## */
+
+/* ############################## OPERATOR'S OVERLOADS ############################## */
 
 Logger &Logger::operator=(const Logger &other)
 {
 	if (&other != this)
-	{
-		
-	}
+		*this = other;
+	
 	return (*this);
 }
 
 
-/* ########## Setter/Getter ########## */
 
+/* ################################ MEMBER FUNCTIONS ################################ */
 
-/* ########## Member function ########## */
-
+/*
+ *	@brief Prints a debug log into the console.
+ *	@param msg The message to print.
+ *	@param tagColor The color of the "Debug" text. Optional, defaults to RESET.
+ *	@param textColor The color of the message text. Optional, defaults to RESET.
+*/
 void	Logger::debug(const char *msg, int tagColor, int textColor)
 {
 	if (VERBOSE)
@@ -47,6 +47,12 @@ void	Logger::debug(const char *msg, int tagColor, int textColor)
 	}
 }
 
+/*
+ *	@brief Prints an info log into the console.
+ *	@param msg The message to print.
+ *	@param tagColor The color of the "Info" text. Optional, defaults to CYAN.
+ *	@param textColor The color of the message text. Optional, defaults to RESET.
+*/
 void	Logger::info(const char *msg, int tagColor, int textColor)
 {
 	std::cout 	<< "\033[" << tagColor << ";1m" << "Info\t" 
@@ -55,6 +61,12 @@ void	Logger::info(const char *msg, int tagColor, int textColor)
 				<< "\033[" << RESET << "m" << std::endl;
 }
 
+/*
+ *	@brief Prints a warning log in the console.
+ *	@param msg The message to print.
+ *	@param tagColor The color of the "Warning" text. Optional, defaults to YELLOW.
+ *	@param textColor The color of the message text. Optional, defaults to RESET.
+*/
 void	Logger::warning(const char *msg, int tagColor, int textColor)
 {
 	std::cout 	<< "\033[" << tagColor << ";1m" << "Warning\t" 
@@ -63,6 +75,12 @@ void	Logger::warning(const char *msg, int tagColor, int textColor)
 				<< "\033[" << RESET << "m" << std::endl;
 }
 
+/*
+ *	@brief Prints an error log in the console (on standard error output).
+ *	@param msg The message to print.
+ *	@param tagColor The color of the "Error" text. Optional, defaults to RED.
+ *	@param textColor The color of the message text. Optional, defaults to RESET.
+*/
 void	Logger::error(const char *msg, int tagColor, int textColor)
 {
 	std::cerr 	<< "\033[" << tagColor << ";1m" << "Error\t" 
@@ -72,8 +90,14 @@ void	Logger::error(const char *msg, int tagColor, int textColor)
 }
 
 
-/* ########## Exception ########## */
 
+/* ################################### EXCEPTIONS ################################### */
+
+/*
+ *	@brief Gets an error message with strerror.
+ *	@param funcName The name of the function which returned an error.
+ *	@param errnum The error's status code.
+*/
 Logger::FunctionError::FunctionError(const char *funcName, const int errnum)
 {
 	std::ostringstream oss;
@@ -84,13 +108,11 @@ Logger::FunctionError::FunctionError(const char *funcName, const int errnum)
 		oss << "Function " << funcName << " failed with error: " << strerror(errnum);
 	_message = oss.str();
 }
-Logger::FunctionError::~FunctionError(void) throw()
-{
-}
-const char *Logger::FunctionError::what(void) const throw()
-{
-	return (_message.c_str());
-}
 
+Logger::FunctionError::~FunctionError(void) throw() {}
 
-/* ########## Non-member function ########## */
+/*
+ *	@brief Gets an error message with strerror.
+ *	@return The error message.
+*/
+const char *Logger::FunctionError::what(void) const throw() {	return (_message.c_str());	}
