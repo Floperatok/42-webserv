@@ -80,7 +80,7 @@ int	Cgi::getContent(const std::string &filepath, const std::string &cgiPath, std
 		{
 			if (execve(filepath.c_str(), args, env) < 0)
 			{
-				Logger::error(("Cannot execute file '" + filepath + "': " + strerror(errno)).c_str());
+				Logger::error("Cannot execute file '" + filepath + "': " + strerror(errno));
 				exit(EXIT_FAILURE);
 			}
 		}
@@ -89,7 +89,7 @@ int	Cgi::getContent(const std::string &filepath, const std::string &cgiPath, std
 
 			if (execve(cgiPath.c_str(), args, env) < 0)
 			{
-				Logger::error(("Cannot run '" + cgiPath + ": " + strerror(errno)).c_str());
+				Logger::error("Cannot run '" + cgiPath + ": " + strerror(errno));
 				exit(EXIT_FAILURE);
 			}
 		}
@@ -118,8 +118,7 @@ int	Cgi::getContent(const std::string &filepath, const std::string &cgiPath, std
 
 				if (execve("a.out", args, env) < 0)
 				{
-					std::string	errorMessage = "Cannot run 'a.out': " + std::string(strerror(errno));
-					Logger::error(errorMessage.c_str());
+					Logger::error("Cannot run 'a.out': " + std::string(strerror(errno)));
 					exit(EXIT_FAILURE);
 				}
 			}

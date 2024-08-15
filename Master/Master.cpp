@@ -56,14 +56,12 @@ void	Master::setupServers(void)
 
 	for ( ; it != ite; it++)
 	{
-		std::ostringstream oss;
-		oss << "Setting up server at port " << it->getPort();
-		Logger::info(oss.str().c_str());
+		Logger::info("Setting up server at port " + Utils::IntToStr(it->getPort()) + ".");
 		
 		if (!it->setup())
 		{
 			Logger::error("Server setup failed.");
-            Response::InternalServerError500(it->getSockfd());
+            Response::InternalServerError500(it->getSockfd(), *it);
 		}
 	}
 	_nbServers = _servers.size();
@@ -79,7 +77,7 @@ void	Master::_initFds(void)
 		{
 			if (_servers[i].getSockfd() < 0)
 			{
-				Logger::error(("Invalid server socket file descriptor: " + Utils::IntToStr(_servers[i].getSockfd())).c_str());
+				Logger::error("Invalid server socket file descriptor: " + Utils::IntToStr(_servers[i].getSockfd()) + ".");
                 continue;
 			}
 			_fds[i].fd = _servers[i].getSockfd();
@@ -96,14 +94,12 @@ void	Master::_initFds(void)
  *	Send a "Service Unavailable" response and close the connection
  *		if no client slot are available.
 */
-void	Master::_storeFd(int fd, const short events)
+void	Master::_storeFd(int fd, const Server &server, const short events)
 {
-	std::ostringstream oss;
-	oss << "Storing client socket_fd " << fd << " in the fds array";
-	Logger::debug(oss.str().c_str());
+	Logger::debug("Storing client socket_fd " + Utils::IntToStr(fd) + " in the fds array.");
 	if (fd < 0)
 	{
-		Logger::error(("Attempted to store an invalid file descriptor: " + Utils::IntToStr(fd)).c_str());
+		Logger::error("Attempted to store an invalid file descriptor: " + Utils::IntToStr(fd) + ".");
 		return ;
 	}
 	int i = 0;
@@ -111,7 +107,7 @@ void	Master::_storeFd(int fd, const short events)
 		i++;
 	if (i == MAX_CLIENT)
 	{
-		Response::ServiceUnavailable503(fd);
+		Response::ServiceUnavailable503(fd, server);
 		_RemoveFd(i);
 		Logger::error("Max client limit reached, connection closed.");
 	}
@@ -152,17 +148,12 @@ int	Master::_createClientSocket(Server &server)
 		(struct sockaddr *)&servaddr,
 		&servaddrLen)) < 0)
 	{
-		std::ostringstream oss;
-		oss << "Failed to accept to connect the socket binded to the port " 
-			<< server.getPort() << " with error: " << strerror(errno);
-		Logger::warning(oss.str().c_str());
-		Response::ServiceUnavailable503(server.getSockfd());
+		Logger::warning("Failed to accept the socket binded on the port " + Utils::IntToStr(server.getPort()) + ".");
+		Response::ServiceUnavailable503(server.getSockfd(), server);
 		return (-1);
 	}
-	std::ostringstream oss;
-	oss << "New socket created for client connection on port " << ntohs(server.getServaddr().sin_port)
-		<< ", socket_fd: " << clientSocket;
-	Logger::info(oss.str().c_str());
+	Logger::info("New client's socket created on port " + Utils::IntToStr(ntohs(server.getServaddr().sin_port)) \
+				+ ", socket_fd: " + Utils::IntToStr(clientSocket) + ".");
 	return (clientSocket);
 }
 
@@ -170,54 +161,52 @@ int	Master::_createClientSocket(Server &server)
  *	Reads from the socket and stores the request in receivedData.
  *	Returns 0 if connection is closed, else 1.
 */
-int Master::_readSocket(const int sockfd, std::string &receivedData)
+int	Master::_readSocket(const int sockfd, std::string &receivedData)
 {
-    char			buffer[BUFFER_SIZE];
-    ssize_t			bytesread;
+	char			buffer[BUFFER_SIZE];
+	ssize_t			bytesread;
 	size_t			totalBytesRead = 0;
 	size_t			contentLength = 0;
 	bool			headersReceived = false;
 
-    while (true)
+
+	bytesread = recv(sockfd, buffer, BUFFER_SIZE, MSG_DONTWAIT);
+	if (bytesread < 0)
 	{
-        bytesread = recv(sockfd, buffer, BUFFER_SIZE, MSG_DONTWAIT);
-        if (bytesread < 0)
+		Logger::error("Failed to read from socket " + Utils::IntToStr(sockfd) + ".");
+		return (-1);
+	}
+
+	if (bytesread == 0) 
+	{
+		Logger::info("Connection to the socket " + Utils::IntToStr(sockfd) + " closed.");
+		return (-1);
+	}
+	buffer[bytesread] = '\0';
+	receivedData.append(buffer, bytesread);
+	totalBytesRead += bytesread;
+	size_t headersEndPos = receivedData.find("\r\n\r\n");
+
+	if (!headersReceived && headersEndPos != std::string::npos)
+	{
+		headersReceived = true;
+
+		size_t contentLengthPos = receivedData.find("Content-Length: ");
+		if (contentLengthPos != std::string::npos)
 		{
-			Logger::error(("Failed to read from socket " + Utils::IntToStr(sockfd) + ".").c_str());
-            Response::ServiceUnavailable503(sockfd);
-			return (0);
+			size_t contentLengthStart = contentLengthPos + 16;
+			size_t contentLengthEnd = receivedData.find("\r\n", contentLengthStart);
+			contentLength = Utils::StrToInt(receivedData.substr(contentLengthStart, contentLengthEnd - contentLengthStart));
 		}
-
-        if (bytesread == 0) 
-		{
-			Logger::info(("Connection of the socket " + Utils::IntToStr(sockfd) + " closed.").c_str());
-		    return (0);
-        }
-		buffer[bytesread] = '\0';
-        receivedData.append(buffer, bytesread);
-		totalBytesRead += bytesread;
-		size_t headersEndPos = receivedData.find("\r\n\r\n");
-
-		if (!headersReceived && headersEndPos != std::string::npos)
-        {
-			headersReceived = true;
-
-			size_t contentLengthPos = receivedData.find("Content-Length: ");
-			if (contentLengthPos != std::string::npos)
-			{
-				size_t contentLengthStart = contentLengthPos + 16;
-				size_t contentLengthEnd = receivedData.find("\r\n", contentLengthStart);
-				contentLength = Utils::StrToInt(receivedData.substr(contentLengthStart, contentLengthEnd - contentLengthStart));
-			}
-        }
-		if (headersReceived && receivedData.size() >= headersEndPos + 4 + contentLength)
-        {
-			Logger::info(("Request received from socket " + Utils::IntToStr(sockfd) + ".").c_str());
-			// Logger::debug(("Received request:\n'" + receivedData + "'").c_str());
-
-			return (1);
-        }
-    }
+	}
+	if (headersReceived && receivedData.size() >= headersEndPos + 4 + contentLength)
+	{
+		Logger::info("Request fully received from socket " + Utils::IntToStr(sockfd) + ".");
+		// Logger::debug("Received request:\n'" + receivedData + "'");
+		return (1);
+	}
+	// Logger::debug("Request received but not complete:\n" + receivedData + "'");
+	return (0);
 }
 
 /*
@@ -231,10 +220,8 @@ void	Master::_checkServersConnections(void)
 			continue ;
 		if (_fds[i].revents & POLLIN)
 		{
-			std::ostringstream oss;
-			oss << "New pending connection on the server socket binded to the port "
-				<< _servers[i].getPort();
-			Logger::debug(oss.str().c_str());
+			Logger::debug("New connection on the server's socket binded to the port " \
+						+ Utils::IntToStr(_servers[i].getPort()) + ".");
 
 			int clientSocket = _createClientSocket(_servers[i]);
 			if ((clientSocket < 0))
@@ -242,59 +229,67 @@ void	Master::_checkServersConnections(void)
 				Logger::error("Failed to create a client socket.");
 				continue ;
 			}
-			_storeFd(clientSocket, POLLIN);
+			_storeFd(clientSocket, _servers[i], POLLIN);
 		}
 	}
 }
 
-void	Master::_manageClientsRequests(char **env)
+void	Master::_manageClientsRequests(char **env, size_t *i)
 {
-	for (size_t i = _nbServers; i < _nfds; i++)
-	{
-		if (_fds[i].revents == 0)
-			continue ;
-		
+	if (*i >= _nfds)
+		*i = _nbServers;
 
-		if (_fds[i].revents & POLLERR)
+	for (; *i < _nfds ; (*i)++)
+	{
+		if (_fds[*i].revents == 0)
+			continue ;
+		if (_fds[*i].revents & POLLERR)
 		{
-			std::ostringstream oss;
-			oss << "socket " << _fds[i].fd << " has POLLERR in revents. revents is " << _fds[i].revents << std::endl;
-			Logger::error(oss.str().c_str());
+			Logger::error("Socket " + Utils::IntToStr(_fds[*i].fd) + " has POLLERR in revents. Revents is " \
+						+ Utils::IntToStr(_fds[*i].revents) + ".");
+			_RemoveFd(*i);
+			i--;
+			continue ;
+
 		}
-		if (_fds[i].revents & POLLHUP)
+		if (_fds[*i].revents & POLLHUP)
 		{
-			_RemoveFd(i);
+			Logger::warning("Connection suspended at socket " + Utils::IntToStr(_fds[*i].fd) + ".");
+			_RemoveFd(*i);
 			i--;
 			continue ;
 		}
-		if (_fds[i].revents & POLLIN)
+		if (_fds[*i].revents & POLLIN)
 		{
-			std::ostringstream oss;
-			oss << "Reading socket " << _fds[i].fd << "...   revents is " << _fds[i].revents;
-			Logger::debug(oss.str().c_str());
+			Logger::debug("Reading socket " + Utils::IntToStr(_fds[*i].fd) + "...");
 
-			std::string request("");
-			if (!_readSocket(_fds[i].fd, request))
+			int	r = _readSocket(_fds[*i].fd, _requests[*i]);
+			if (r < 0)
 			{
-				_RemoveFd(i);
-				i--;
-				continue ;
+				_RemoveFd(*i);
+				(*i)--;
+				return ;
 			}
-
-			oss.str("");
-			oss.clear();
-			oss << "Sending response to socket_fd " << _fds[i].fd << "...";
-			Logger::debug(oss.str().c_str());
-			int	statusCode = Response::SendResponse(_servers, _fds[i].fd, request, env);
+			else if (r == 0)
+			{
+				(*i)--;
+				return ;
+			}
+			
+			int	statusCode = Response::SendResponse(_servers, _fds[*i].fd, _requests[*i], env);
 			if (statusCode != 200)
-				Logger::error(("Failed to send response to the client. Status code: " \
-								+ Utils::IntToStr(statusCode) + ".").c_str());
+				Logger::error("Failed to send response to the client. Status code: " \
+								+ Utils::IntToStr(statusCode) + ".");
+			_requests[*i] = "";
+			return ;
 		}
 	}
 }
 
 void	Master::runServers(char **env)
 {
+	size_t	i = _nbServers;
+
 	Logger::info("Launching servers");
 	_initFds();
 	Logger::info("Waiting for connections...");
@@ -314,7 +309,7 @@ void	Master::runServers(char **env)
 			continue ;
 		}
 		_checkServersConnections();
-		_manageClientsRequests(env);
+		_manageClientsRequests(env, &i);
 	}
 }
 
@@ -335,9 +330,8 @@ void Master::_RemoveFd(unsigned int index)
 {
 	if (index >= _nfds || _fds[index].fd == -1)
 		return ;
-	std::ostringstream oss;
-	oss << "Closing socket " << _fds[index].fd;
-	Logger::info(oss.str().c_str());
+	
+	Logger::info("Closing socket " + Utils::IntToStr(_fds[index].fd) + ".");
 	
 	close(_fds[index].fd);
 

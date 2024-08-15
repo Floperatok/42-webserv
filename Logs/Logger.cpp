@@ -36,7 +36,7 @@ Logger &Logger::operator=(const Logger &other)
  *	@param tagColor The color of the "Debug" text. Optional, defaults to RESET.
  *	@param textColor The color of the message text. Optional, defaults to RESET.
 */
-void	Logger::debug(const char *msg, int tagColor, int textColor)
+void	Logger::debug(const std::string &msg, int tagColor, int textColor)
 {
 	if (VERBOSE)
 	{
@@ -53,7 +53,7 @@ void	Logger::debug(const char *msg, int tagColor, int textColor)
  *	@param tagColor The color of the "Info" text. Optional, defaults to CYAN.
  *	@param textColor The color of the message text. Optional, defaults to RESET.
 */
-void	Logger::info(const char *msg, int tagColor, int textColor)
+void	Logger::info(const std::string &msg, int tagColor, int textColor)
 {
 	std::cout 	<< "\033[" << tagColor << ";1m" << "Info\t" 
 				<< "\033[" << RESET << "m" << " |\t"
@@ -67,7 +67,7 @@ void	Logger::info(const char *msg, int tagColor, int textColor)
  *	@param tagColor The color of the "Warning" text. Optional, defaults to YELLOW.
  *	@param textColor The color of the message text. Optional, defaults to RESET.
 */
-void	Logger::warning(const char *msg, int tagColor, int textColor)
+void	Logger::warning(const std::string &msg, int tagColor, int textColor)
 {
 	std::cout 	<< "\033[" << tagColor << ";1m" << "Warning\t" 
 				<< "\033[" << RESET << "m" << " |\t"
@@ -81,7 +81,7 @@ void	Logger::warning(const char *msg, int tagColor, int textColor)
  *	@param tagColor The color of the "Error" text. Optional, defaults to RED.
  *	@param textColor The color of the message text. Optional, defaults to RESET.
 */
-void	Logger::error(const char *msg, int tagColor, int textColor)
+void	Logger::error(const std::string &msg, int tagColor, int textColor)
 {
 	std::cerr 	<< "\033[" << tagColor << ";1m" << "Error\t" 
 				<< "\033[" << RESET << "m" << " |\t"
@@ -98,7 +98,7 @@ void	Logger::error(const char *msg, int tagColor, int textColor)
  *	@param funcName The name of the function which returned an error.
  *	@param errnum The error's status code.
 */
-Logger::FunctionError::FunctionError(const char *funcName, const int errnum)
+Logger::FunctionError::FunctionError(const std::string &funcName, const int errnum)
 {
 	std::ostringstream oss;
 
