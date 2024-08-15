@@ -32,10 +32,10 @@ Response &Response::operator=(const Response &rhs)
 /* ############# GENERAL FUNCTIONS ############# */
 
 /*
- *	@brief	Sends response to the appropriate server according to the client's request.
- *	@param	servers	The vector's list of servers.
- *	@param	fd The socket's file descriptor.
- *	@param	request	The request.
+ *	@brief Sends response to the appropriate server according to the client's request.
+ *	@param servers	The vector's list of servers.
+ *	@param fd The socket's file descriptor.
+ *	@param request	The request.
  *	@return	The status code of the response sent.
 */
 int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string request, char **env)
@@ -52,51 +52,52 @@ int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string req
 	if (!_CheckAutoIndex(server, location))
 	{
 		Logger::error("Auto-index is OFF but no index was specified.");
-		return (Forbidden403(fd));
+		return (Forbidden403(fd, server));
 	}
 
 	if (!_CheckBodySize(request, maxBodySize))
 	{
 		Logger::error("The request's body size exceeds the body size limit.");
-		return (ContentTooLarge413(fd));
+		return (ContentTooLarge413(fd, server));
 	}
 
 	if (method == "GET" && _IsMethodAllowed(method, location))
 	{
 		_GenerateCgiPage(root, req[1]);
 		if (req[1].find("/cgi-bin/cgi_script?script=") != std::string::npos)
-			return (_HandleCgi(fd, root, req[1], location, env));
-		return (_WritePage(fd, path, _GetContentType(request, path), "200 OK"));
+			return (_HandleCgi(fd, server, req[1], location, env));
+		return (_WritePage(fd, server, path, _GetContentType(request, path), "200 OK"));
 	}
 	else if (method == "POST" && _IsMethodAllowed(method, location) && _GetMethod(request) == "")
-		return (_HandlePost(fd, request, root, req[1], location));
+		return (_HandlePost(fd, server, request, req[1], location));
 	else if (method == "POST" && _GetMethod(request) == "DELETE" && _IsMethodAllowed("DELETE", location))
-		return (_HandleDelete(fd, request, root));
+		return (_HandleDelete(fd, server, request, root));
 		
 	Logger::error("The request's method is not allowed.");
-	return (MethodNotAllowed405(fd));
+	return (MethodNotAllowed405(fd, server));
 }
 
 /*
- *	@brief	Writes the header and the content into the socket fd.
- *	@param	fd The socket's file descriptor.
- *	@param	path The path of the ressource we want to access to.
- *	@param	type The content-type.
- *	@param	status The string-formated status code.
- *	@param	recursed	(bool) Parameter to indicate if we are in a loop (default: false).
+ *	@brief Writes the header and the content into the socket fd.
+ *	@param fd The socket's file descriptor.
+ *	@param server The server to write on.
+ *	@param path The path of the ressource we want to access to.
+ *	@param type The content-type.
+ *	@param status The string-formated status code.
+ *	@param recursed Parameter to indicate if we are in a loop (default: false).
  *	@return	The status code.
 */
-int	Response::_WritePage(int fd, const std::string &path, const std::string &type, \
-						const std::string &status, bool recursed)
+int	Response::_WritePage(int fd, const Server &server, const std::string &path, \
+				const std::string &type, const std::string &status, bool recursed)
 {
 	std::ifstream		file(path.c_str(), std::ios::in | std::ios::binary);
 
 	if (!file.is_open())
 	{
-		Logger::error(("Can't open file '" + path + "'.").c_str());
+		Logger::error("Can't open file '" + path + "'.");
 		if (recursed)
 			return (-1);
-		return (NotFound404(fd));
+		return (NotFound404(fd, server));
 	}
 	
 	std::vector<char> content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
@@ -111,7 +112,7 @@ int	Response::_WritePage(int fd, const std::string &path, const std::string &typ
 		Logger::error("Failed to write header.");
 		if (recursed)
 			return (-1);
-		return (InternalServerError500(fd));
+		return (InternalServerError500(fd, server));
 	}
 
 	ssize_t bytesWritten = send(fd, content.data(), content.size(), MSG_NOSIGNAL);
@@ -120,18 +121,18 @@ int	Response::_WritePage(int fd, const std::string &path, const std::string &typ
 		Logger::error("Failed to write content.");
 		if (recursed)
 			return (-1);
-		return (InternalServerError500(fd));
+		return (InternalServerError500(fd, server));
 	}
 	else if (static_cast<size_t>(bytesWritten) != content.size())
 	{
 		Logger::error("Incomplete content written.");
 		if (recursed)
 			return (-1);
-		return InternalServerError500(fd);
+		return InternalServerError500(fd, server);
 	}
 
-	Logger::debug(("Response sent: HTTP/1.1 " + status + " | Content-Type: " + type \
-				+ " | Content-Length: " + Utils::IntToStr(content.size())).c_str());
+	Logger::debug("Response sent: HTTP/1.1 " + status + " | Content-Type: " + type \
+				+ " | Content-Length: " + Utils::IntToStr(content.size()) + ".");
 
 	return (200);
 }
@@ -142,53 +143,54 @@ int	Response::_WritePage(int fd, const std::string &path, const std::string &typ
 /*
  *	@brief Upload a file into the server, creates the file, and sends a success page in case of success.
  *	@param fd The socket's file descriptor.
+ *	@param server The server on which the file is uploaded.
  *	@param request The request.
- *	@param root The root directory of the website.
  *	@param path The path from the request.
  *	@return	200 in case of success, 500 in case of error.
 */
-int Response::_HandlePost(int fd, const std::string &request, const std::string &root, \
+int Response::_HandlePost(int fd, const Server &server, const std::string &request, \
 					const std::string &path, const Location &location)
 {
+	std::string		root = server.getRoot();
     std::string		body = request.substr(request.find("\r\n\r\n") + 4);
     std::string		boundary = _GetBoundary(request);
     std::string		filename = _ExtractFilename(body);
     std::string		fileData = _ExtractFileData(body, boundary);
 
 	if (path == "/cgi-bin" && !_CheckExtension(filename, location.getCgiExt()))
-		return (Forbidden403(fd));
+		return (Forbidden403(fd, server));
 
     std::string		uploadPath = root + "uploads/" + filename;
 	if (path == "/cgi-bin")
 		uploadPath = root + "cgi-bin/" + filename;
 
 	if (boundary.empty() || filename.empty() || fileData.empty())
-		return (InternalServerError500(fd));
+		return (InternalServerError500(fd, server));
 	
     std::ofstream	outFile(uploadPath.c_str(), std::ios::binary);
     if (!outFile)
 	{
-		Logger::error(("Failed to open '" + uploadPath + "' for writting.").c_str());
-        return (InternalServerError500(fd));
+		Logger::error("Failed to open '" + uploadPath + "' for writting.");
+        return (InternalServerError500(fd, server));
 	}
     
     outFile.write(fileData.c_str(), fileData.size());
     outFile.close();
 
 	if (path == "/cgi-bin")
-		_WritePage(fd, root + "script_uploaded.html", "text/html", "200 OK");
+		_WritePage(fd, server, root + "script_uploaded.html", "text/html", "200 OK");
 	else
 	{
 	_UpdateUploadsPage(root);
-	_WritePage(fd, root + "file_uploaded.html", "text/html", "200 OK");
+	_WritePage(fd, server, root + "file_uploaded.html", "text/html", "200 OK");
 	}
     
     return (200);
 }
 
 /*
- *	@brief	Gets the request's boundary.
- *	@param	request	The request.
+ *	@brief Gets the request's boundary.
+ *	@param request	The request.
  *	@return	The boundary.
 */
 std::string Response::_GetBoundary(const std::string &request)
@@ -203,8 +205,8 @@ std::string Response::_GetBoundary(const std::string &request)
 }
 
 /*
- *	@brief	Extracts the file's name from the request's body.
- *	@param	body	The request's body.
+ *	@brief Extracts the file's name from the request's body.
+ *	@param body	The request's body.
  *	@return	The file's name.
 */
 std::string Response::_ExtractFilename(const std::string &body)
@@ -245,9 +247,9 @@ bool	Response::_CheckExtension(const std::string &filename, const std::vector<st
 }
 
 /*
- *	@brief	Extracts a file's data from the request's body.
- *	@param	body	The request's body.
- *	@param	boundary	The request's boundary.
+ *	@brief Extracts a file's data from the request's body.
+ *	@param body	The request's body.
+ *	@param boundary	The request's boundary.
  *	@return	The file's content.
 */
 std::string Response::_ExtractFileData(const std::string &body, const std::string &boundary)
@@ -261,8 +263,8 @@ std::string Response::_ExtractFileData(const std::string &body, const std::strin
 }
 
 /*
- *	@brief	Generates an uploads.html page with links to uploaded files.
- *	@param	root	The website's root.
+ *	@brief Generates an uploads.html page with links to uploaded files.
+ *	@param root	The website's root.
  *	@return	The resulted file's content.
 */
 std::string	Response::_GenerateUploadsPage(const std::string &root)
@@ -337,19 +339,19 @@ void	Response::_UpdateUploadsPage(const std::string &root)
  *	@return	200 in case of success.
  *	@return 500 in case of error.
 */
-int Response::_HandleDelete(int fd, const std::string &request, const std::string &root)
+int Response::_HandleDelete(int fd, const Server &server, const std::string &request, const std::string &root)
 {
     std::string path = root + "uploads/" + _GetFilePathToDelete(request);
 
     if (std::remove(path.c_str()))
     {
         Logger::error(("Failed to delete file: " + path).c_str());
-        return (InternalServerError500(fd));
+        return (InternalServerError500(fd, server));
     }
 
 	_UpdateUploadsPage(root);
 
-    _WritePage(fd, "www/file_deleted.html", "text/html", "200 OK");
+    _WritePage(fd, server, "www/file_deleted.html", "text/html", "200 OK");
 
     return (200);
 }
@@ -385,12 +387,12 @@ std::string	Response::_GetFilePathToDelete(const std::string &request)
  *	@param location The CGI location.
  *	@return The appropriate status code.
 */
-int	Response::_HandleCgi(int fd, const std::string &root, std::string &path, const Location &location, char **env)
+int	Response::_HandleCgi(int fd, const Server &server, std::string &path, const Location &location, char **env)
 {
 	
 	path.erase(9, 18);
 	path.erase(0, 1);
-	path = root + path;
+	path = server.getRoot() + path;
 
 	std::string	ext = _GetExtension(path);
 
@@ -406,12 +408,12 @@ int	Response::_HandleCgi(int fd, const std::string &root, std::string &path, con
 			if (ext == cgiExts[i])
 				cgiPath = cgiPaths[i];
 		if (cgiPath.empty())
-			return (InternalServerError500(fd));
+			return (InternalServerError500(fd, server));
 	}
 
 	std::string	content;
 	if (Cgi::getContent(path, cgiPath, content, env) < 0)
-		return (InternalServerError500(fd));
+		return (InternalServerError500(fd, server));
 	
 	std::string	contentType = "text/plain";
 
@@ -433,23 +435,23 @@ int	Response::_HandleCgi(int fd, const std::string &root, std::string &path, con
 	if (send(fd, headers.c_str(), headers.size(), MSG_NOSIGNAL) < 0)
 	{
 		Logger::error("Failed to write content.");
-		return (InternalServerError500(fd));
+		return (InternalServerError500(fd, server));
 	}
 
 	ssize_t	bytesWritten = send(fd, content.c_str(), content.size(), MSG_NOSIGNAL);
 	if (bytesWritten < 0)
 	{
 		Logger::error("Failed to write CGI content.");
-		return (InternalServerError500(fd));
+		return (InternalServerError500(fd, server));
 	}
 	else if (static_cast<size_t>(bytesWritten) != content.size())
 	{
 		Logger::error("Incomplete CGI content written.");
-		return InternalServerError500(fd);
+		return InternalServerError500(fd, server);
 	}
 
-	Logger::debug(("Response sent: HTTP/1.1 200 OK | Content-Type: " + contentType \
-				+ " | Content-Length: " + Utils::IntToStr(content.size())).c_str());
+	Logger::debug("Response sent: HTTP/1.1 200 OK | Content-Type: " + contentType \
+				+ " | Content-Length: " + Utils::IntToStr(content.size()));
 
 	return (200);
 }
@@ -494,9 +496,9 @@ std::string	Response::_GetExtension(const std::string &path)
 }
 
 /*
- *	@brief	Gets the server from which request is done.
- *	@param	servers	The vector's list of servers.
- *	@param	request	The request.
+ *	@brief Gets the server from which request is done.
+ *	@param servers	The vector's list of servers.
+ *	@param request	The request.
  *	@return	The corresponding server.
 */
 Server	Response::_GetServer(const std::vector<Server> &servers, const std::string &request)
@@ -517,8 +519,8 @@ Server	Response::_GetServer(const std::vector<Server> &servers, const std::strin
 }
 
 /*
- *	@brief	Gets the port of the server from which request is done.
- *	@param	request	The request.
+ *	@brief Gets the port of the server from which request is done.
+ *	@param request	The request.
  *	@return	The server's port.
 */
 std::string	Response::_GetPath(const Server &server, const std::string &subPath)
@@ -535,8 +537,8 @@ std::string	Response::_GetPath(const Server &server, const std::string &subPath)
 }
 
 /*
- *	@brief	Gets the port of the server from which request is done.
- *	@param	request	The request.
+ *	@brief Gets the port of the server from which request is done.
+ *	@param request	The request.
  *	@return	The server's port.
 */
 int	Response::_GetPort(const std::string &request)
@@ -552,8 +554,8 @@ int	Response::_GetPort(const std::string &request)
 }
 
 /*
- *	@brief	Gets the header's content type from a request.
- *	@param	request	The request.
+ *	@brief Gets the header's content type from a request.
+ *	@param request	The request.
  *	@return	The content type.
 */
 std::string	Response::_GetContentType(const std::string &request, const std::string &path)
@@ -596,9 +598,9 @@ std::string	Response::_GetContentType(const std::string &request, const std::str
 }
 
 /*
- *	@brief	Gets the appropriate server's location according to the request's path.
- *	@param	server The server.
- *	@param	path The request's path.
+ *	@brief Gets the appropriate server's location according to the request's path.
+ *	@param server The server.
+ *	@param path The request's path.
  *	@return	The current location.
 */
 Location		Response::_GetLocation(const Server &server, const std::string &path)
@@ -615,9 +617,9 @@ Location		Response::_GetLocation(const Server &server, const std::string &path)
 }
 
 /*
- *	@brief	Checks if a method is allowed in a given location.
- *	@param	method	The method to check.
- *	@param	location	The location.
+ *	@brief Checks if a method is allowed in a given location.
+ *	@param method	The method to check.
+ *	@param location	The location.
  *	@return	TRUE if the method is allowed, FALSE if not.
 */
 bool	Response::_IsMethodAllowed(const std::string &method, Location &location)
@@ -637,9 +639,9 @@ bool	Response::_IsMethodAllowed(const std::string &method, Location &location)
 }
 
 /*
- *	@brief	Checks if a method is allowed in a given location.
- *	@param	method	The method to check.
- *	@param	location	The location.
+ *	@brief Checks if a method is allowed in a given location.
+ *	@param method	The method to check.
+ *	@param location	The location.
  *	@return	TRUE if the method is allowed, FALSE if not.
 */
 bool	Response::_CheckAutoIndex(const Server &server, const Location &location)
@@ -670,8 +672,8 @@ bool	Response::_CheckAutoIndex(const Server &server, const Location &location)
 }
 
 /*
- *	@brief	Gets the hidden method from a request.
- *	@param	request	The request.
+ *	@brief Gets the hidden method from a request.
+ *	@param request	The request.
  *	@return	The method, or an empty string if no hidden method was found.
 */
 std::string	Response::_GetMethod(const std::string &request)
@@ -716,154 +718,242 @@ bool	Response::_CheckBodySize(const std::string &request, size_t maxBodySize)
 /* ################ ERROR PAGES ################ */
 
 /*
- *	@brief	Displays the error 400 page.
- *	@param	fd	The socket's file descriptor.
- *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@brief Displays the error 400 page.
+ *	@param fd	The socket's file descriptor.
+ *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::BadRequest400(int fd, const std::string &path)
+int	Response::BadRequest400(int fd, const Server &server)
 {
-	if (_WritePage(fd, path, "text/html", "400 Bad Request", true) == -1)
+	std::string	root = server.getRoot();
+	std::string	path = server.getErrorPage400();
+	
+	if (path.empty())
+		path = ERROR_400;
+	else
+		path = root + path;
+
+	if (_WritePage(fd, server, path, "text/html", "400 Bad Request", true) == -1)
 		Logger::error("Failed to send 400 response.");
 
 	return (400);
 }
 
 /*
- *	@brief	Displays the error 403 page.
- *	@param	fd	The socket's file descriptor.
- *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@brief Displays the error 403 page.
+ *	@param fd	The socket's file descriptor.
+ *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::Forbidden403(int fd, const std::string &path)
+int	Response::Forbidden403(int fd, const Server &server)
 {
-	if (_WritePage(fd, path, "text/html", "403 Forbidden", true) == -1)
+	std::string	root = server.getRoot();
+	std::string	path = server.getErrorPage403();
+	
+	if (path.empty())
+		path = ERROR_403;
+	else
+		path = root + path;
+
+	if (_WritePage(fd, server, path, "text/html", "403 Forbidden", true) == -1)
 		Logger::error("Failed to send 403 response.");
 	
 	return (403);
 }
 
 /*
- *	@brief	Displays the error 404 page.
- *	@param	fd	The socket's file descriptor.
- *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@brief Displays the error 404 page.
+ *	@param fd	The socket's file descriptor.
+ *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::NotFound404(int fd, const std::string &path)
+int	Response::NotFound404(int fd, const Server &server)
 {
-	if (_WritePage(fd, path, "text/html", "404 Not Found", true) == -1)
+	std::string	root = server.getRoot();
+	std::string	path = server.getErrorPage404();
+	
+	if (path.empty())
+		path = ERROR_404;
+	else
+		path = root + path;
+
+	if (_WritePage(fd, server, path, "text/html", "404 Not Found", true) == -1)
 		Logger::error("Failed to send 404 response.");
 
 	return (404);
 }
 
 /*
- *	@brief	Displays the error 405 page.
- *	@param	fd	The socket's file descriptor.
- *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@brief Displays the error 405 page.
+ *	@param fd	The socket's file descriptor.
+ *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::MethodNotAllowed405(int fd, const std::string &path)
+int	Response::MethodNotAllowed405(int fd, const Server &server)
 {
-	if (_WritePage(fd, path, "text/html", "405 Method Not Allowed", true) == -1)
+	std::string	root = server.getRoot();
+	std::string	path = server.getErrorPage405();
+	
+	if (path.empty())
+		path = ERROR_405;
+	else
+		path = root + path;
+
+	if (_WritePage(fd, server, path, "text/html", "405 Method Not Allowed", true) == -1)
 		Logger::error("Failed to send 405 response.");
 
 	return (405);
 }
 
 /*
- *	@brief	Displays the error 408 page.
- *	@param	fd	The socket's file descriptor.
- *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@brief Displays the error 408 page.
+ *	@param fd	The socket's file descriptor.
+ *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::RequestTimeout408(int fd, const std::string &path)
+int	Response::RequestTimeout408(int fd, const Server &server)
 {
-	if (_WritePage(fd, path, "text/html", "408 Request Timeout", true) == -1)
+	std::string	root = server.getRoot();
+	std::string	path = server.getErrorPage408();
+	
+	if (path.empty())
+		path = ERROR_408;
+	else
+		path = root + path;
+
+	if (_WritePage(fd, server, path, "text/html", "408 Request Timeout", true) == -1)
 		Logger::error("Failed to send 408 response.");
 
 	return (408);
 }
 
 /*
- *	@brief	Displays the error 413 page.
- *	@param	fd	The socket's file descriptor.
- *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@brief Displays the error 413 page.
+ *	@param fd	The socket's file descriptor.
+ *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::ContentTooLarge413(int fd, const std::string &path)
+int	Response::ContentTooLarge413(int fd, const Server &server)
 {
-	if (_WritePage(fd, path, "text/html", "413 Content Too Large", true) == -1)
+	std::string	root = server.getRoot();
+	std::string	path = server.getErrorPage413();
+	
+	if (path.empty())
+		path = ERROR_413;
+	else
+		path = root + path;
+
+	if (_WritePage(fd, server, path, "text/html", "413 Content Too Large", true) == -1)
 		Logger::error("Failed to send 413 response.");
 
 	return (413);
 }
 
 /*
- *	@brief	Displays the error 500 page.
- *	@param	fd	The socket's file descriptor.
- *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@brief Displays the error 500 page.
+ *	@param fd	The socket's file descriptor.
+ *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::InternalServerError500(int fd, const std::string &path)
+int	Response::InternalServerError500(int fd, const Server &server)
 {
-	if (_WritePage(fd, path, "text/html", "500 Internal Server Error", true) == -1)
+	std::string	root = server.getRoot();
+	std::string	path = server.getErrorPage500();
+	
+	if (path.empty())
+		path = ERROR_500;
+	else
+		path = root + path;
+
+	if (_WritePage(fd, server, path, "text/html", "500 Internal Server Error", true) == -1)
 		Logger::error("Failed to send 500 response.");
 
 	return (500);
 }
 
 /*
- *	@brief	Displays the error 501 page.
- *	@param	fd	The socket's file descriptor.
- *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@brief Displays the error 501 page.
+ *	@param fd	The socket's file descriptor.
+ *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::MethodNotImplemented501(int fd, const std::string &path)
+int	Response::MethodNotImplemented501(int fd, const Server &server)
 {
-	if (_WritePage(fd, path, "text/html", "501 Not Implemented", true) == -1)
+	std::string	root = server.getRoot();
+	std::string	path = server.getErrorPage501();
+	
+	if (path.empty())
+		path = ERROR_501;
+	else
+		path = root + path;
+
+	if (_WritePage(fd, server, path, "text/html", "501 Not Implemented", true) == -1)
 		Logger::error("Failed to send 501 response.");
 
 	return (501);
 }
 
 /*
- *	@brief	Displays the error 502 page.
- *	@param	fd	The socket's file descriptor.
- *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@brief Displays the error 502 page.
+ *	@param fd	The socket's file descriptor.
+ *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::BadGateway502(int fd, const std::string &path)
+int	Response::BadGateway502(int fd, const Server &server)
 {
-	if (_WritePage(fd, path, "text/html", "502 Bad Gateway", true) == -1)
+	std::string	root = server.getRoot();
+	std::string	path = server.getErrorPage502();
+	
+	if (path.empty())
+		path = ERROR_502;
+	else
+		path = root + path;
+
+	if (_WritePage(fd, server, path, "text/html", "502 Bad Gateway", true) == -1)
 		Logger::error("Failed to send 502 response.");
 
 	return (502);
 }
 
 /*
- *	@brief	Displays the error 503 page.
- *	@param	fd	The socket's file descriptor.
- *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@brief Displays the error 503 page.
+ *	@param fd	The socket's file descriptor.
+ *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::ServiceUnavailable503(int fd, const std::string &path)
+int	Response::ServiceUnavailable503(int fd, const Server &server)
 {
-	if (_WritePage(fd, path, "text/html", "503 Service Unavailable", true) == -1)
+	std::string	root = server.getRoot();
+	std::string	path = server.getErrorPage503();
+	
+	if (path.empty())
+		path = ERROR_503;
+	else
+		path = root + path;
+
+	if (_WritePage(fd, server, path, "text/html", "503 Service Unavailable", true) == -1)
 		Logger::error("Failed to send 503 response.");
 
 	return (503);
 }
 
 /*
- *	@brief	Displays the error 504 page.
- *	@param	fd	The socket's file descriptor.
- *	@param	path The path of the corresponding page (let blank to use the default page).
+ *	@brief Displays the error 504 page.
+ *	@param fd	The socket's file descriptor.
+ *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::GatewayTimeout504(int fd, const std::string &path)
+int	Response::GatewayTimeout504(int fd, const Server &server)
 {
-	if (_WritePage(fd, path, "text/html", "504 Gateway Timeout", true) == -1)
+	std::string	root = server.getRoot();
+	std::string	path = server.getErrorPage504();
+	
+	if (path.empty())
+		path = ERROR_504;
+	else
+		path = root + path;
+
+	if (_WritePage(fd, server, path, "text/html", "504 Gateway Timeout", true) == -1)
 		Logger::error("Failed to send 504 response.");
 
 	return (504);

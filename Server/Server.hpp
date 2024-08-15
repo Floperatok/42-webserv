@@ -42,7 +42,6 @@ public:
 	Server(void);
 	Server(const Server &copy);
 	~Server(void);
-
 	Server &operator=(const Server &other);
 	
 	// Setters and getters

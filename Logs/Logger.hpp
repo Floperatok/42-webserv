@@ -27,10 +27,10 @@ private:
 
 public:
 	// Members
-	static void	debug(const char *msg, int tagColor = RESET, int textColor = RESET);
-	static void	info(const char *msg, int tagColor = CYAN, int textColor = RESET);
-	static void	warning(const char *msg, int tagColor = YELLOW, int textColor = RESET);
-	static void	error(const char *msg, int tagColor = RED, int textColor = RESET);
+	static void	debug(const std::string &msg, int tagColor = RESET, int textColor = RESET);
+	static void	info(const std::string &msg, int tagColor = CYAN, int textColor = RESET);
+	static void	warning(const std::string &msg, int tagColor = YELLOW, int textColor = RESET);
+	static void	error(const std::string &msg, int tagColor = RED, int textColor = RESET);
 
 	// Exceptions
 	class FunctionError : public std::exception
@@ -38,7 +38,7 @@ public:
 	private:
 		std::string			_message;
 	public:
-		FunctionError(const char *funcName, const int errnum);
+		FunctionError(const std::string &funcName, const int errnum);
 		virtual ~FunctionError(void) throw();
 		virtual const char	*what(void) const throw();
 	};

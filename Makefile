@@ -12,15 +12,14 @@ SRCS			=	main.cpp \
 				Response/Response.cpp \
 				Parser/CheckConfig.cpp \
 				Parser/Parser.cpp \
-				Cgi/Cgi.cpp \
-				Client/Client.cpp
+				Cgi/Cgi.cpp
 
 OBJ_PATH	=	objs/
 OBJS		=	$(addprefix $(OBJ_PATH), $(SRCS:.cpp=.o))
 
 UPLOADED_FILES = www/uploads/* www/cgi-bin/*
 
-INCLUDES	=	-I Utils/ -I Logs/ -I Master/ -I Server/ -I Response/ -I Parser/ -I Cgi/ -I Client/
+INCLUDES	=	-I Utils/ -I Logs/ -I Master/ -I Server/ -I Response/ -I Parser/ -I Cgi/
 
 all:	$(NAME)
 
