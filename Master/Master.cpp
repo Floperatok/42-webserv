@@ -96,12 +96,13 @@ void	Master::_initFds(void)
  *	Send a "Service Unavailable" response and close the connection
  *		if no client slot are available.
 */
-void	Master::_storeFd(int fd, const short events)
+void	Master::_storeFd(Client &client, const short events)
 {
+	int fd = client.getSockfd();
 	std::ostringstream oss;
 	oss << "Storing client socket_fd " << fd << " in the fds array";
 	Logger::debug(oss.str().c_str());
-	if (fd < 0)
+	if (client.getSockfd() < 0)
 	{
 		Logger::error(("Attempted to store an invalid file descriptor: " + Utils::IntToStr(fd)).c_str());
 		return ;
@@ -111,10 +112,12 @@ void	Master::_storeFd(int fd, const short events)
 		i++;
 	if (i == MAX_CLIENT)
 	{
-		Response::ServiceUnavailable503(fd);
-		_RemoveFd(i);
+		Response::ServiceUnavailable503(client.getSockfd());
+		close(client.getSockfd());
 		Logger::error("Max client limit reached, connection closed.");
+		return ;
 	}
+	_clients.push_back(client);
 	_fds[i].fd = fd;
 	_fds[i].events = events;
 	_fds[i].revents = 0;
@@ -138,33 +141,7 @@ void	Master::_compressArray(void)
 	}
 }
 
-/*
- *	Creates new client socket and returns it.
- *	Returns -1 in case of error.
-*/
-int	Master::_createClientSocket(Server &server)
-{
-	int					clientSocket;
-	struct sockaddr_in	servaddr = server.getServaddr();
-	socklen_t			servaddrLen = sizeof(servaddr);
 
-	if ((clientSocket = accept(server.getSockfd(), 
-		(struct sockaddr *)&servaddr,
-		&servaddrLen)) < 0)
-	{
-		std::ostringstream oss;
-		oss << "Failed to accept to connect the socket binded to the port " 
-			<< server.getPort() << " with error: " << strerror(errno);
-		Logger::warning(oss.str().c_str());
-		Response::ServiceUnavailable503(server.getSockfd());
-		return (-1);
-	}
-	std::ostringstream oss;
-	oss << "New socket created for client connection on port " << ntohs(server.getServaddr().sin_port)
-		<< ", socket_fd: " << clientSocket;
-	Logger::info(oss.str().c_str());
-	return (clientSocket);
-}
 
 /*
  *	Reads from the socket and stores the request in receivedData.
@@ -236,13 +213,23 @@ void	Master::_checkServersConnections(void)
 				<< _servers[i].getPort();
 			Logger::debug(oss.str().c_str());
 
-			int clientSocket = _createClientSocket(_servers[i]);
-			if ((clientSocket < 0))
+			Client	client(_servers[i]);
+			if ((client.getSockfd() < 0))
 			{
-				Logger::error("Failed to create a client socket.");
+				oss.clear();
+				oss.str("");
+				oss << "Failed to accept to connect the socket binded to the port " 
+					<< client.getServer()->getPort() << " with error: " << strerror(errno);
+				Logger::error(oss.str().c_str());
+				Response::ServiceUnavailable503(client.getServer()->getSockfd());
 				continue ;
 			}
-			_storeFd(clientSocket, POLLIN);
+			oss.clear();
+			oss.str("");
+			oss << "New socket created for client connection on port " << ntohs(client.getServer()->getServaddr().sin_port)
+				<< ", socket_fd: " << client.getSockfd();
+			Logger::info(oss.str().c_str());
+			_storeFd(client, POLLIN | POLLOUT);
 		}
 	}
 }
@@ -253,8 +240,6 @@ void	Master::_manageClientsRequests(char **env)
 	{
 		if (_fds[i].revents == 0)
 			continue ;
-		
-
 		if (_fds[i].revents & POLLERR)
 		{
 			std::ostringstream oss;
@@ -263,7 +248,7 @@ void	Master::_manageClientsRequests(char **env)
 		}
 		if (_fds[i].revents & POLLHUP)
 		{
-			_RemoveFd(i);
+			_RemoveClient(i);
 			i--;
 			continue ;
 		}
@@ -276,10 +261,11 @@ void	Master::_manageClientsRequests(char **env)
 			std::string request("");
 			if (!_readSocket(_fds[i].fd, request))
 			{
-				_RemoveFd(i);
+				_RemoveClient(i);
 				i--;
 				continue ;
 			}
+			_clients[i - _servers.size()].appendRequest(request);
 
 			oss.str("");
 			oss.clear();
@@ -289,6 +275,7 @@ void	Master::_manageClientsRequests(char **env)
 			if (statusCode != 200)
 				Logger::error(("Failed to send response to the client. Status code: " \
 								+ Utils::IntToStr(statusCode) + ".").c_str());
+			_clients[i - _servers.size()].clearRequest();
 		}
 	}
 }
@@ -331,7 +318,7 @@ void	Master::_displayInfos(void) const
 	
 }
 
-void Master::_RemoveFd(unsigned int index)
+void Master::_RemoveClient(unsigned int index)
 {
 	if (index >= _nfds || _fds[index].fd == -1)
 		return ;
@@ -342,7 +329,10 @@ void Master::_RemoveFd(unsigned int index)
 	close(_fds[index].fd);
 
 	for (unsigned int i = index; i < _nfds - 1; i++)
+	{
+		_clients[i - _servers.size()] = _clients[i - _servers.size() + 1];
 		_fds[i] = _fds[i + 1];
+	}
 
 	_fds[_nfds - 1].fd = -1;
 	_fds[_nfds - 1].events = 0;

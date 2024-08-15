@@ -7,6 +7,7 @@
 # include "Response.hpp"
 # include "Logger.hpp"
 # include "Cgi.hpp"
+# include "Client.hpp"
 
 
 class Master
@@ -14,13 +15,14 @@ class Master
 private:
 	// Attributes
 	std::vector<Server>	_servers;
+	std::vector<Client>	_clients;
 	unsigned int		_nbServers;
 	unsigned int		_nfds;
 	struct pollfd		_fds[MAX_CLIENT];
 
 	// Methods
 	void		_initFds(void);
-	void 		_storeFd(int fd, const short events);
+	void		_storeFd(Client &client, const short events);
 	void		_compressArray(void);
 	int			_createClientSocket(Server &server);
 	int			_readSocket(const int sockfd, std::string &receivedData);
