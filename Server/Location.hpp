@@ -21,6 +21,8 @@ class Location
 		const std::string				&getIndex() const;
 		void							setAutoIndex(bool autoIndex);
 		bool							getAutoIndex() const;
+		const std::string				&getRedirect() const;
+		void							setRedirect(const std::string &redirect);
 		void							setAllowMethods(const std::vector<std::string> &allowMethods);
 		const std::vector<std::string>	&getAllowMethods() const;
 		void							setCgiPath(const std::vector<std::string> &cgiPath);
@@ -33,6 +35,7 @@ class Location
 		std::string						_root;
 		std::string						_index;
 		bool							_autoIndex;
+		std::string						_redirect;
 		std::vector<std::string>		_allowMethods;
 		std::vector<std::string>		_cgiPath;
 		std::vector<std::string>		_cgiExt;

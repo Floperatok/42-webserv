@@ -4,7 +4,7 @@
 
 /* ################################## CONSTRUCTORS ################################## */
 
-Location::Location() : _location(""), _root(""), _index(""), _autoIndex(false) {}
+Location::Location() : _location(""), _root(""), _index(""), _autoIndex(false), _redirect("") {}
 
 Location::Location(const Location &toCopy)
 {
@@ -14,6 +14,7 @@ Location::Location(const Location &toCopy)
 		_root = toCopy._root;
 		_index = toCopy._index;
 		_autoIndex = toCopy._autoIndex;
+		_redirect = toCopy._redirect;
 		_allowMethods = toCopy._allowMethods;
 		_cgiPath = toCopy._cgiPath;
 		_cgiExt = toCopy._cgiExt;
@@ -28,6 +29,7 @@ Location	&Location::operator=(const Location &rhs)
 		_root = rhs._root;
 		_index = rhs._index;
 		_autoIndex = rhs._autoIndex;
+		_redirect = rhs._redirect;
 		_allowMethods = rhs._allowMethods;
 		_cgiPath = rhs._cgiPath;
 		_cgiExt = rhs._cgiExt;
@@ -52,6 +54,9 @@ const std::string	&Location::getIndex() const {	return (_index);	}
 
 void	Location::setAutoIndex(bool autoIndex) {	_autoIndex = autoIndex;	}
 bool	Location::getAutoIndex() const {	return (_autoIndex);	}
+
+void	Location::setRedirect(const std::string &redirect) {	_redirect = redirect;	}
+const std::string	&Location::getRedirect() const {	return (_redirect);	}
 
 void	Location::setAllowMethods(const std::vector<std::string> &allowMethods) {	_allowMethods = allowMethods;	}
 const std::vector<std::string>	&Location::getAllowMethods() const {	return (_allowMethods);	}

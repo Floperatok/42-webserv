@@ -37,12 +37,16 @@ class Response
 		static bool			_IsMethodAllowed(const std::string &method, Location &location);
 		static std::string	_GetMethod(const std::string &request);
 		static bool			_CheckBodySize(const std::string &request, size_t maxBodySize);
-		static void			_ReplaceRootInLocation(const Location &location, std::string &path);
+		static void			_ReplaceRootInLocation(const Server &server, Location &location, std::string &path);
 
 		// Auto-Index
-		static bool			_CheckAutoIndex(const Server &server, std::string &path, \
-								const std::string &requestPath, const Location &location);
+		static bool			_CheckAutoIndex(const Server &server, const Location &location, \
+								std::string &path, const std::string &requestPath);
 		static bool			_GenerateIndexPage(const std::string &path, const std::string &requestPath);
+
+		// Redirection
+		static void			_CheckRedirection(const Server &server, Location &location, \
+									std::string &path, std::string &status);
 
 		// GET Methods
 		static int			_WritePage(int fd, const Server &server, const std::string &path, \

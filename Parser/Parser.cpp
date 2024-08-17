@@ -164,120 +164,120 @@ void	Parser::_ParseServer(std::vector<std::string> &parameters, Server &server)
 		std::string	parameter = *it;
 		Utils::TrimStr(parameter, " ");
 
-		if (parameter.find("listen") != std::string::npos)
+		if (parameter.find("listen") == 0)
 		{
 			parameter.erase(0, 7);
 			server.setPort(Utils::StrToInt(parameter));
 		}
-		else if (parameter.find("server_name") != std::string::npos)
+		else if (parameter.find("server_name") == 0)
 		{
 			parameter.erase(0, 12);
 			server.setServerName(parameter);
 		}
-		else if (parameter.find("host") != std::string::npos)
+		else if (parameter.find("host") == 0)
 		{
 			parameter.erase(0, 5);
 			if (!parameter.compare("localhost"))
 				parameter = "127.0.0.1";
 			server.setHost(parameter);
 		}
-		else if (parameter.find("root") != std::string::npos)
+		else if (parameter.find("root") == 0)
 		{
 			parameter.erase(0, 5);
 			if (parameter[parameter.length() - 1] != '/')
 				parameter = parameter + '/';
 			server.setRoot(parameter);
 		}
-		else if (parameter.find("index") != std::string::npos)
+		else if (parameter.find("index") == 0)
 		{
 			parameter.erase(0, 6);
 			if (parameter[0] == '/')
 				parameter.erase(0, 1);
 			server.setIndex(parameter);
 		}
-		else if (parameter.find("client_max_body_size") != std::string::npos)
+		else if (parameter.find("client_max_body_size") == 0)
 		{
 			parameter.erase(0, 21);
 			server.setMaxBodySize(Utils::StrToInt(parameter));
 		}
-		else if (parameter.find("error_page 400 ") != std::string::npos)
+		else if (parameter.find("error_page 400 ") == 0)
 		{
 			parameter.erase(0, 15);
 			if (parameter[0] == '/')
 				parameter.erase(0, 1);
 			server.setErrorPage400(parameter);
 		}
-		else if (parameter.find("error_page 403 ") != std::string::npos)
+		else if (parameter.find("error_page 403 ") == 0)
 		{
 			parameter.erase(0, 15);
 			if (parameter[0] == '/')
 				parameter.erase(0, 1);
 			server.setErrorPage403(parameter);
 		}
-		else if (parameter.find("error_page 404 ") != std::string::npos)
+		else if (parameter.find("error_page 404 ") == 0)
 		{
 			parameter.erase(0, 15);
 			if (parameter[0] == '/')
 				parameter.erase(0, 1);
 			server.setErrorPage404(parameter);
 		}
-		else if (parameter.find("error_page 405 ") != std::string::npos)
+		else if (parameter.find("error_page 405 ") == 0)
 		{
 			parameter.erase(0, 15);
 			if (parameter[0] == '/')
 				parameter.erase(0, 1);
 			server.setErrorPage405(parameter);
 		}
-		else if (parameter.find("error_page 408 ") != std::string::npos)
+		else if (parameter.find("error_page 408 ") == 0)
 		{
 			parameter.erase(0, 15);
 			if (parameter[0] == '/')
 				parameter.erase(0, 1);
 			server.setErrorPage408(parameter);
 		}
-		else if (parameter.find("error_page 413 ") != std::string::npos)
+		else if (parameter.find("error_page 413 ") == 0)
 		{
 			parameter.erase(0, 15);
 			if (parameter[0] == '/')
 				parameter.erase(0, 1);
 			server.setErrorPage413(parameter);
 		}
-		else if (parameter.find("error_page 500 ") != std::string::npos)
+		else if (parameter.find("error_page 500 ") == 0)
 		{
 			parameter.erase(0, 15);
 			if (parameter[0] == '/')
 				parameter.erase(0, 1);
 			server.setErrorPage500(parameter);
 		}
-		else if (parameter.find("error_page 501 ") != std::string::npos)
+		else if (parameter.find("error_page 501 ") == 0)
 		{
 			parameter.erase(0, 15);
 			if (parameter[0] == '/')
 				parameter.erase(0, 1);
 			server.setErrorPage501(parameter);
 		}
-		else if (parameter.find("error_page 502 ") != std::string::npos)
+		else if (parameter.find("error_page 502 ") == 0)
 		{
 			parameter.erase(0, 15);
 			if (parameter[0] == '/')
 				parameter.erase(0, 1);
 			server.setErrorPage502(parameter);
 		}
-		else if (parameter.find("error_page 503 ") != std::string::npos)
+		else if (parameter.find("error_page 503 ") == 0)
 		{
 			parameter.erase(0, 15);
 			if (parameter[0] == '/')
 				parameter.erase(0, 1);
 			server.setErrorPage503(parameter);
 		}
-		else if (parameter.find("error_page 504 ") != std::string::npos)
+		else if (parameter.find("error_page 504 ") == 0)
 		{
 			parameter.erase(0, 15);
 			if (parameter[0] == '/')
 				parameter.erase(0, 1);
 			server.setErrorPage504(parameter);
 		}
-		else if (parameter.find("location") != std::string::npos)
+		else if (parameter.find("location") == 0)
 			break ;
 		it++;
 	}
@@ -302,7 +302,7 @@ void	Parser::_ParseLocations(std::vector<std::string> &parameters, Server &serve
 		Utils::TrimStr(parameter, " ");
 		Location	location;
 
-		if (it != parameters.end() && parameter.find("location") != std::string::npos)
+		if (it != parameters.end() && parameter.find("location") == 0)
 		{
 			parameter.erase(0, 9);
 			location.setLocation(parameter);
@@ -312,36 +312,41 @@ void	Parser::_ParseLocations(std::vector<std::string> &parameters, Server &serve
 			{
 				Utils::TrimStr(parameter = *it, " ");
 
-				if (parameter.find("root") != std::string::npos)
+				if (parameter.find("root") == 0)
 				{
 					parameter.erase(0, 5);
 					location.setRoot(parameter);
 				}
-				else if (parameter.find("index") != std::string::npos \
+				else if (parameter.find("index") == 0 \
 						 && parameter.find("autoindex") == std::string::npos)
 				{
 					parameter.erase(0, 6);
 					location.setIndex(parameter);
 				}
-				else if (parameter.find("autoindex") != std::string::npos)
+				else if (parameter.find("autoindex") == 0)
 				{
 					parameter.erase(0, 10);
-					if (parameter.find("on") != std::string::npos)
+					if (parameter.find("on") == 0)
 						location.setAutoIndex(true);
-					else if (parameter.find("off") != std::string::npos)
+					else if (parameter.find("off") == 0)
 						location.setAutoIndex(false);
 				}
-				else if (parameter.find("allow_methods") != std::string::npos)
+				else if (parameter.find("return") == 0)
+				{
+					parameter.erase(0, 7);
+					location.setRedirect(parameter);
+				}
+				else if (parameter.find("allow_methods") == 0)
 				{
 					parameter.erase(0, 14);
 					location.setAllowMethods(Utils::SplitStr(parameter, " "));
 				}
-				else if (parameter.find("cgi_path") != std::string::npos)
+				else if (parameter.find("cgi_path") == 0)
 				{
 					parameter.erase(0, 9);
 					location.setCgiPath(Utils::SplitStr(parameter, " "));
 				}
-				else if (parameter.find("cgi_ext") != std::string::npos)
+				else if (parameter.find("cgi_ext") == 0)
 				{
 					parameter.erase(0, 8);
 					location.setCgiExt(Utils::SplitStr(parameter, " "));

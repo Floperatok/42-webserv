@@ -41,6 +41,7 @@ Response &Response::operator=(const Response &rhs)
 */
 int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string request, char **env)
 {
+	std::string					status = "200 OK";
 	std::string					line = request.substr(0, request.find('\n'));
 	std::vector<std::string>	req = Utils::SplitStr(line, " ");
 	std::string					method = req[0];
@@ -56,22 +57,20 @@ int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string req
 		return (ContentTooLarge413(fd, server));
 	}
 
-	_ReplaceRootInLocation(location, path);
-
-	if (!_CheckAutoIndex(server, path, req[1], location))
+	_CheckRedirection(server, location, path, status);
+	_ReplaceRootInLocation(server, location, path);
+	if (!_CheckAutoIndex(server, location, path, req[1]))
 	{
 		Logger::error("Auto-Index is OFF and no index was found.");
 		return (Forbidden403(fd, server));
 	}
-
-	std::cout << "VOILA LE PATH: '" << path << "'" << std::endl;
 
 	if (method == "GET" && _IsMethodAllowed(method, location))
 	{
 		_GenerateCgiPage(root, req[1]);
 		if (req[1].find("/cgi-bin/cgi_script?script=") != std::string::npos)
 			return (_HandleCgi(fd, server, req[1], location, env));
-		return (_WritePage(fd, server, path, _GetContentType(request, path), "200 OK"));
+		return (_WritePage(fd, server, path, _GetContentType(request, path), status));
 	}
 	else if (method == "POST" && _IsMethodAllowed(method, location) && _GetMethod(request) == "")
 		return (_HandlePost(fd, server, request, req[1], location));
@@ -494,8 +493,8 @@ void	Response::_GenerateCgiPage(const std::string &root, const std::string &path
  *	@location The location.
  *	@return	TRUE if auto-index is valid, FALSE if not.
 */
-bool	Response::_CheckAutoIndex(const Server &server, std::string &path, \
-					const std::string &requestPath, const Location &location)
+bool	Response::_CheckAutoIndex(const Server &server, const Location &location, \
+					std::string &path, const std::string &requestPath)
 {
 	struct stat	s;
 
@@ -517,7 +516,6 @@ bool	Response::_CheckAutoIndex(const Server &server, std::string &path, \
 		if (!location.getRoot().empty())
 			locationPath = location.getRoot();
 
-		std::cout << "DONC ICI NOUS AVONS: PATH = '" << path << "', ROOT = '" << server.getRoot() << "', " << std::endl;
 		if (!locationPath.empty() && locationPath != "/")
 		{
 			if (locationPath[0] == '/')
@@ -636,6 +634,70 @@ bool Response::_GenerateIndexPage(const std::string &path, const std::string &re
 	Logger::info("Generated index.html for directory '" + path + "'.");
 
 	return (true);
+}
+
+
+/* ############### REDIRECTIONS ################ */
+
+/*
+ *	@brief Check if there is a redirection to do at a given location
+ *	and replaces path if needed with the appropriate status code.
+ *	@param server The server.
+ *	@param location The current location.
+ *	@param path The current path to replace.
+ *	@param status The current status code to replace.
+*/
+void	Response::_CheckRedirection(const Server &server, Location &location, \
+					std::string &path, std::string &status)
+{
+	if (location.getRedirect().empty())
+		return ;
+	
+	std::vector<std::string>	redirect = Utils::SplitStr(location.getRedirect(), " ");
+
+	std::string					toReplace = location.getLocation();
+	std::string					replaceBy = redirect[1];
+
+	if (toReplace[0] == '/' && replaceBy[0] != '/')
+		replaceBy = "/" + replaceBy;
+	else if (toReplace[0] != '/' && replaceBy[0] == '/')
+		replaceBy.erase(0, 1);
+
+	size_t						start = path.find(toReplace);
+	if (start == std::string::npos)
+	{
+		Logger::error("Can't find location to redirect '" +  toReplace + "'");
+		return ;
+	}
+	
+	struct stat					s;
+	std::string					newPath = path;
+	newPath = newPath.erase(start) + replaceBy;
+	if (stat(newPath.c_str(), &s) == 0)
+	{
+		if (s.st_mode & S_IFDIR)
+		{
+			path.erase(start, toReplace.size());
+			path.insert(start, replaceBy);
+		}
+		else
+			path = newPath;
+	}
+	else
+	{
+		Logger::error("Can't find redirected path '" + newPath + "'");
+		return ;
+	}
+	if (path[path.size() - 1] == '/')
+		path.erase(path.size() - 1);
+	
+	int							statusValue = Utils::StrToInt(redirect[0]);
+	if (statusValue == 301)
+		status = "301 Moved Permanently";
+	else if (statusValue == 302)
+		status = "302 Found";
+
+	location = _GetLocation(server, path);
 }
 
 
@@ -847,30 +909,36 @@ bool	Response::_CheckBodySize(const std::string &request, size_t maxBodySize)
 
 /*
  *	@brief If a root is set in a given location, replaces location by the root.
+ *	@param server The server.
  *	@param location The location to check.
  *	@param path The path which will be modified.
 */
-void	Response::_ReplaceRootInLocation(const Location &location, std::string &path)
+void	Response::_ReplaceRootInLocation(const Server &server, Location &location, std::string &path)
 {
-	if (!location.getRoot().empty())
+	if (location.getRoot().empty())
+		return ;
+	
+	std::string	toReplace = location.getLocation();
+	std::string	replaceBy = location.getRoot();
+
+	if (toReplace[0] == '/' && replaceBy[0] != '/')
+		replaceBy = "/" + replaceBy;
+	else if (toReplace[0] != '/' && replaceBy[0] == '/')
+		replaceBy.erase(0, 1);
+
+	size_t		start = path.find(toReplace);
+	if (start == std::string::npos)
 	{
-		std::string	toReplace = location.getLocation();
-		std::string	replaceBy = location.getRoot();
-
-		if (toReplace[0] == '/' && replaceBy[0] != '/')
-			replaceBy = "/" + replaceBy;
-		else if (toReplace[0] != '/' && replaceBy[0] == '/')
-			replaceBy.erase(0, 1);
-
-		size_t		start = path.find(toReplace);
-		if (start != std::string::npos)
-		{
-			path.erase(start, toReplace.size());
-			path.insert(start, replaceBy);
-			if (path[path.size() - 1] == '/')
-				path.erase(path.size() - 1);
-		}
+		Logger::error("Can't find the location '" + toReplace + "' in the path '" + path + "'.");
+		return ;
 	}
+
+	path.erase(start, toReplace.size());
+	path.insert(start, replaceBy);
+	if (path[path.size() - 1] == '/')
+		path.erase(path.size() - 1);
+	
+	location = _GetLocation(server, path);
 }
 
 
