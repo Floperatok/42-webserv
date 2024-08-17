@@ -37,6 +37,7 @@ class Response
 		static bool			_IsMethodAllowed(const std::string &method, Location &location);
 		static std::string	_GetMethod(const std::string &request);
 		static bool			_CheckBodySize(const std::string &request, size_t maxBodySize);
+		static void			_ReplaceRootInLocation(const Location &location, std::string &path);
 
 		// Auto-Index
 		static bool			_CheckAutoIndex(const Server &server, std::string &path, \

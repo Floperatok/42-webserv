@@ -29,13 +29,14 @@ Response &Response::operator=(const Response &rhs)
 
 
 /* ################################ MEMBER FUNCTIONS ################################ */
-/* ############# GENERAL FUNCTIONS ############# */
+/* ############ PRINCIPAL FUNCTION ############# */
 
 /*
  *	@brief Sends response to the appropriate server according to the client's request.
  *	@param servers	The vector's list of servers.
  *	@param fd The socket's file descriptor.
  *	@param request	The request.
+ *	@param env The environnement to use for CGI Scripts.
  *	@return	The status code of the response sent.
 */
 int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string request, char **env)
@@ -55,11 +56,15 @@ int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string req
 		return (ContentTooLarge413(fd, server));
 	}
 
+	_ReplaceRootInLocation(location, path);
+
 	if (!_CheckAutoIndex(server, path, req[1], location))
 	{
 		Logger::error("Auto-Index is OFF and no index was found.");
 		return (Forbidden403(fd, server));
 	}
+
+	std::cout << "VOILA LE PATH: '" << path << "'" << std::endl;
 
 	if (method == "GET" && _IsMethodAllowed(method, location))
 	{
@@ -76,6 +81,9 @@ int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string req
 	Logger::error("The request's method is not allowed.");
 	return (MethodNotAllowed405(fd, server));
 }
+
+
+/* ############ GET METHOD HANDLER ############# */
 
 /*
  *	@brief Writes the header and the content into the socket fd.
@@ -475,6 +483,162 @@ void	Response::_GenerateCgiPage(const std::string &root, const std::string &path
 }
 
 
+/* ################ AUTO-INDEX ################# */
+
+/*
+ *	@brief Checks if auto-index is true or false. If true, generates an index.html page.
+ *	If false, checks if an index page exists or is specified.
+ *	@param server The server.
+ *	@param path The complete path to the directory to check for auto-index.
+ *	@param requestPath The relative path contained in the request.
+ *	@location The location.
+ *	@return	TRUE if auto-index is valid, FALSE if not.
+*/
+bool	Response::_CheckAutoIndex(const Server &server, std::string &path, \
+					const std::string &requestPath, const Location &location)
+{
+	struct stat	s;
+
+	if (stat((path).c_str(), &s) == 0 && s.st_mode & S_IFDIR)
+	{
+		if (location.getAutoIndex() && !_GenerateIndexPage(path, requestPath))
+		{
+			Logger::error("Auto-Index failed to generate an index page.");
+			return (false);
+		}
+
+		std::string index = location.getIndex();
+		if (index.empty())
+			index = "index.html";
+		else if (index[0] == '/')
+			index.erase(0, 1);
+
+		std::string locationPath = location.getLocation();
+		if (!location.getRoot().empty())
+			locationPath = location.getRoot();
+
+		std::cout << "DONC ICI NOUS AVONS: PATH = '" << path << "', ROOT = '" << server.getRoot() << "', " << std::endl;
+		if (!locationPath.empty() && locationPath != "/")
+		{
+			if (locationPath[0] == '/')
+				locationPath.erase(0, 1);
+			if (path != server.getRoot() + locationPath)
+			{
+				Logger::error("Sub-location '" + locationPath + "' not found; autoindex is OFF by default.");
+				return (false);
+			}
+		}
+
+		if (path[path.size() - 1] != '/')
+			path = path + "/";
+		path = path + index;
+
+		std::ifstream	file;
+		file.open(path.c_str());
+		if (!file)
+		{
+			Logger::error("Can't open index at '" + path + "'.");
+			return (false);
+		}
+		file.close();
+	}
+
+	return (true);
+}
+
+/*
+ *	@brief Generates an index.html page if autoindex is ON.
+ *	@param path The path of the directory in which the index page will be generated.
+ *	@param requestPath The relative path from the request.
+ *	@return TRUE if the index page was generated without error, FALSE if errors was found.
+*/
+bool Response::_GenerateIndexPage(const std::string &path, const std::string &requestPath)
+{
+	std::string		indexPath = path + "/index.html";
+	if (path[path.size() - 1] == '/')
+		indexPath = path + "index.html";
+
+	DIR				*dir;
+	dir = opendir(path.c_str());
+	if (!dir)
+	{
+		Logger::error("Failed to open directory '" + path + "' (to auto-generate an index page).");
+		return (false);
+	}
+
+	struct stat	s;
+	if (stat(indexPath.c_str(), &s) == 0)
+		return (true);
+
+	std::ofstream	indexFile;
+	indexFile.open(indexPath.c_str());
+	if (!indexFile)
+	{
+		Logger::error("Failed to create index.html in '" + path + "' (to auto-generate an index page).");
+		closedir(dir);
+		return (false);
+	}
+
+	indexFile << "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n";
+	indexFile << "<meta charset=\"UTF-8\">\n";
+	indexFile << "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
+	indexFile << "<title>Webserv</title>\n";
+	indexFile << "<link rel=\"stylesheet\" href=\"style.css\">\n";
+	indexFile << "</head>\n<body>\n";
+	indexFile << "<header>\n<nav>\n<ul>\n";
+	indexFile << "<li><a href=\"/index.html\">Home</a></li>\n";
+	indexFile << "<li><a href=\"/post.html\">Upload a file</a></li>\n";
+	indexFile << "<li><a href=\"/cgi.html\">CGI Scripts</a></li>\n";
+	indexFile << "<li><a href=\"/nonexistent.html\">Error 404</a></li>\n";
+	indexFile << "</ul>\n</nav>\n</header>\n";
+	indexFile << "<main>\n";
+	indexFile << "<h1>Index of " << requestPath << "</h1>\n";
+	indexFile << "<ul>\n";
+
+	struct dirent	*entry;
+	while ((entry = readdir(dir)))
+	{
+		std::string name = entry->d_name;
+		
+		if (name == "." || name == "..")
+			continue;
+
+		std::string fullPath = path;
+		if (fullPath[fullPath.size() - 1] != '/')
+			fullPath = fullPath + "/";
+		fullPath = fullPath + name;
+
+		std::string	linkPath = requestPath;
+		if (linkPath[linkPath.size() - 1] != '/')
+			linkPath = linkPath + "/";
+		linkPath = linkPath + name;
+		
+		struct stat s;
+		if (stat(fullPath.c_str(), &s) == 0)
+		{
+			if (s.st_mode & S_IFDIR)
+			{
+				indexFile << "<li><a href=\"" << linkPath << "/\"  class=\"uploaded-files-link\">" << name << "</a></li>\n";
+			}
+			else
+			{
+				indexFile << "<li><a href=\"" << linkPath << "\"  class=\"uploaded-files-link\">" << name << "</a></li>\n";
+			}
+		}
+	}
+
+	indexFile << "</ul>\n";
+	indexFile << "</body>\n</html>";
+
+	indexFile.close();
+	closedir(dir);
+
+	Logger::info("Generated index.html for directory '" + path + "'.");
+
+	return (true);
+}
+
+
 /* ############# GENERAL FUNCTIONS ############# */
 
 /*
@@ -639,143 +803,6 @@ bool	Response::_IsMethodAllowed(const std::string &method, Location &location)
 }
 
 /*
- *	@brief Checks if auto-index is true or false. If true, generates an index.html page.
- *	If false, checks if an index page exists or is specified.
- *	@param server The server.
- *	@param path The complete path to the directory to check for auto-index.
- *	@param requestPath The relative path contained in the request.
- *	@location The location.
- *	@return	TRUE if auto-index is valid, FALSE if not.
-*/
-bool	Response::_CheckAutoIndex(const Server &server, std::string &path, \
-					const std::string &requestPath, const Location &location)
-{
-	struct stat	s;
-
-	if (stat((path).c_str(), &s) == 0 && s.st_mode & S_IFDIR)
-	{
-		if (location.getAutoIndex() && !_GenerateIndexPage(path, requestPath))
-			return (false);
-
-		std::string index = location.getIndex();
-		if (index.empty())
-			index = "index.html";
-		else if (index[0] == '/')
-			index.erase(0, 1);
-
-		std::string locationPath = location.getLocation();
-		if (!locationPath.empty() && locationPath != "/")
-		{
-			if (locationPath[0] == '/')
-				locationPath.erase(0, 1);
-			if (path != server.getRoot() + locationPath)
-				return (false);
-		}
-
-		if (path[path.size() - 1] != '/')
-			path = path + "/";
-		path = path + index;
-
-		std::ifstream	file;
-		file.open(path.c_str());
-		if (!file)
-			return (false);
-		file.close();
-	}
-
-	return (true);
-}
-
-/*
- *	@brief Generates an index.html page if autoindex is ON.
- *	@param path The path of the directory in which the index page will be generated.
- *	@param requestPath The relative path from the request.
- *	@return TRUE if the index page was generated without error, FALSE if errors was found.
-*/
-bool Response::_GenerateIndexPage(const std::string &path, const std::string &requestPath)
-{
-	std::string		indexPath = path + "/index.html";
-	if (path[path.size() - 1] == '/')
-		indexPath = path + "index.html";
-
-	DIR				*dir;
-	dir = opendir(path.c_str());
-	if (!dir)
-	{
-		Logger::error("Failed to open directory '" + path + "' (to auto-generate an index page).");
-		return (false);
-	}
-
-	std::ofstream	indexFile;
-	indexFile.open(indexPath.c_str());
-	if (!indexFile)
-	{
-		Logger::error("Failed to create index.html in '" + path + "' (to auto-generate an index page).");
-		closedir(dir);
-		return (false);
-	}
-
-	indexFile << "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n";
-	indexFile << "<meta charset=\"UTF-8\">\n";
-	indexFile << "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
-	indexFile << "<title>Webserv</title>\n";
-	indexFile << "<link rel=\"stylesheet\" href=\"style.css\">\n";
-	indexFile << "</head>\n<body>\n";
-	indexFile << "<header>\n<nav>\n<ul>\n";
-	indexFile << "<li><a href=\"/index.html\">Home</a></li>\n";
-	indexFile << "<li><a href=\"/post.html\">Upload a file</a></li>\n";
-	indexFile << "<li><a href=\"/cgi.html\">CGI Scripts</a></li>\n";
-	indexFile << "<li><a href=\"/nonexistent.html\">Error 404</a></li>\n";
-	indexFile << "</ul>\n</nav>\n</header>\n";
-	indexFile << "<main>\n";
-	indexFile << "<h1>Index of " << requestPath << "</h1>\n";
-	indexFile << "<ul>\n";
-
-	struct dirent	*entry;
-	while ((entry = readdir(dir)))
-	{
-		std::string name = entry->d_name;
-		
-		if (name == "." || name == "..")
-			continue;
-
-		std::string fullPath = path;
-		if (fullPath[fullPath.size() - 1] != '/')
-			fullPath = fullPath + "/";
-		fullPath = fullPath + name;
-
-		std::string	linkPath = requestPath;
-		if (linkPath[linkPath.size() - 1] != '/')
-			linkPath = linkPath + "/";
-		linkPath = linkPath + name;
-		
-		struct stat s;
-		if (stat(fullPath.c_str(), &s) == 0)
-		{
-			if (s.st_mode & S_IFDIR)
-			{
-				indexFile << "<li><a href=\"" << linkPath << "/\"  class=\"uploaded-files-link\">" << name << "</a></li>\n";
-			}
-			else
-			{
-				indexFile << "<li><a href=\"" << linkPath << "\"  class=\"uploaded-files-link\">" << name << "</a></li>\n";
-			}
-		}
-	}
-
-	indexFile << "</ul>\n";
-	indexFile << "</body>\n</html>";
-
-	indexFile.close();
-	closedir(dir);
-
-	Logger::info("Generated index.html for directory '" + path + "'.");
-
-	return (true);
-}
-
-
-/*
  *	@brief Gets the hidden method from a request.
  *	@param request	The request.
  *	@return	The method, or an empty string if no hidden method was found.
@@ -816,6 +843,34 @@ bool	Response::_CheckBodySize(const std::string &request, size_t maxBodySize)
 		return (false);
 	
 	return (true);
+}
+
+/*
+ *	@brief If a root is set in a given location, replaces location by the root.
+ *	@param location The location to check.
+ *	@param path The path which will be modified.
+*/
+void	Response::_ReplaceRootInLocation(const Location &location, std::string &path)
+{
+	if (!location.getRoot().empty())
+	{
+		std::string	toReplace = location.getLocation();
+		std::string	replaceBy = location.getRoot();
+
+		if (toReplace[0] == '/' && replaceBy[0] != '/')
+			replaceBy = "/" + replaceBy;
+		else if (toReplace[0] != '/' && replaceBy[0] == '/')
+			replaceBy.erase(0, 1);
+
+		size_t		start = path.find(toReplace);
+		if (start != std::string::npos)
+		{
+			path.erase(start, toReplace.size());
+			path.insert(start, replaceBy);
+			if (path[path.size() - 1] == '/')
+				path.erase(path.size() - 1);
+		}
+	}
 }
 
 

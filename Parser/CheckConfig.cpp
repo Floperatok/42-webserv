@@ -175,7 +175,8 @@ void CheckConfig::_CheckKeywords(const std::string &content)
 			std::string	parameter = *it;
 			Utils::TrimStr(parameter, " ");
 
-			if (parameter.find("listen") != std::string::npos)
+			if (parameter.find("listen") != std::string::npos \
+					&& parameter.find("location") == std::string::npos)
 			{
 				if (parameter[6] != ' ')
 					throw (WrongParameterException("Invalid port '" + parameter + "'."));
@@ -183,7 +184,8 @@ void CheckConfig::_CheckKeywords(const std::string &content)
 				if (parameter.find_first_not_of("0123456789") != std::string::npos)
 					throw (WrongParameterException("Invalid port '" + parameter + "'."));
 			}
-			else if (parameter.find("server_name") != std::string::npos)
+			else if (parameter.find("server_name") != std::string::npos \
+					&& parameter.find("location") == std::string::npos)
 			{
 				if (parameter[11] != ' ')
 					throw (WrongParameterException("Invalid server name '" + parameter + "'."));
@@ -191,7 +193,8 @@ void CheckConfig::_CheckKeywords(const std::string &content)
 				if (parameter.find(' ') != std::string::npos)
 					throw (WrongParameterException("Invalid server name '" + parameter + "'."));
 			}
-			else if (parameter.find("host") != std::string::npos)
+			else if (parameter.find("host") != std::string::npos \
+					&& parameter.find("location") == std::string::npos)
 			{
 				if (parameter[4] != ' ')
 					throw (WrongParameterException("Invalid host '" + parameter + "'."));
@@ -201,7 +204,8 @@ void CheckConfig::_CheckKeywords(const std::string &content)
 					&& Utils::SplitStr(parameter, ".").size() != 4))
 					throw (WrongParameterException("Invalid host '" + parameter + "'."));
 			}
-			else if (parameter.find("root") != std::string::npos)
+			else if (parameter.find("root") != std::string::npos \
+					&& parameter.find("location") == std::string::npos)
 			{
 				if (parameter[4] != ' ')
 					throw (WrongParameterException("Invalid root '" + parameter + "'."));
@@ -230,7 +234,8 @@ void CheckConfig::_CheckKeywords(const std::string &content)
 				if (parameter.find_first_not_of("0123456789") != std::string::npos)
 					throw (WrongParameterException("Invalid client_max_body_size '" + parameter + "'."));
 			}
-			else if (parameter.find("error_page") != std::string::npos && parameter.find("location") == std::string::npos)
+			else if (parameter.find("error_page") != std::string::npos \
+					&& parameter.find("location") == std::string::npos)
 			{
 				if (parameter[10] != ' ')
 					throw (WrongParameterException("Invalid error page '" + parameter + "'."));
@@ -240,7 +245,8 @@ void CheckConfig::_CheckKeywords(const std::string &content)
 					throw (WrongParameterException("Invalid error page '" + parameter + "'."));
 				errorPagePaths.push_back(errorPage[1]);
 			}
-			else if (parameter.find("autoindex") != std::string::npos)
+			else if (parameter.find("autoindex") != std::string::npos \
+					&& parameter.find("location") == std::string::npos)
 			{
 				if (parameter[9] != ' ')
 					throw (WrongParameterException("Invalid autoindex '" + parameter + "'."));
@@ -248,20 +254,23 @@ void CheckConfig::_CheckKeywords(const std::string &content)
 				if (parameter != "on" && parameter != "off")
 					throw (WrongParameterException("Invalid autoindex '" + parameter + "'."));
 			}
-			else if (parameter.find("allow_methods") != std::string::npos)
+			else if (parameter.find("allow_methods") != std::string::npos \
+					&& parameter.find("location") == std::string::npos)
 			{
 				if (parameter[13] != ' ')
 					throw (WrongParameterException("Invalid allow_methods '" + parameter + "'."));
 				parameter.erase(0, 14);
 			}
-			else if (parameter.find("cgi_path") != std::string::npos)
+			else if (parameter.find("cgi_path") != std::string::npos \
+					&& parameter.find("location") == std::string::npos)
 			{
 				if (parameter[8] != ' ')
 					throw (WrongParameterException("Invalid cgi_path '" + parameter + "'."));
 				parameter.erase(0, 9);
 				cgiPaths = Utils::SplitStr(parameter, " ");
 			}
-			else if (parameter.find("cgi_ext") != std::string::npos)
+			else if (parameter.find("cgi_ext") != std::string::npos \
+					&& parameter.find("location") == std::string::npos)
 			{
 				if (parameter[7] != ' ')
 					throw (WrongParameterException("Invalid cgi_ext '" + parameter + "'."));
