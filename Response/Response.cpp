@@ -49,16 +49,16 @@ int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string req
 	Location					location = _GetLocation(server, path);
 	size_t						maxBodySize = server.getMaxBodySize();
 	
-	if (!_CheckAutoIndex(server, location))
-	{
-		Logger::error("Auto-index is OFF but no index was specified.");
-		return (Forbidden403(fd, server));
-	}
-
 	if (!_CheckBodySize(request, maxBodySize))
 	{
 		Logger::error("The request's body size exceeds the body size limit.");
 		return (ContentTooLarge413(fd, server));
+	}
+
+	if (!_CheckAutoIndex(server, path, req[1], location))
+	{
+		Logger::error("Auto-Index is OFF and no index was found.");
+		return (Forbidden403(fd, server));
 	}
 
 	if (method == "GET" && _IsMethodAllowed(method, location))
@@ -618,9 +618,9 @@ Location		Response::_GetLocation(const Server &server, const std::string &path)
 
 /*
  *	@brief Checks if a method is allowed in a given location.
- *	@param method	The method to check.
- *	@param location	The location.
- *	@return	TRUE if the method is allowed, FALSE if not.
+ *	@param method The method to check.
+ *	@param location The location.
+ *	@return TRUE if the method is allowed, FALSE if not.
 */
 bool	Response::_IsMethodAllowed(const std::string &method, Location &location)
 {
@@ -639,37 +639,143 @@ bool	Response::_IsMethodAllowed(const std::string &method, Location &location)
 }
 
 /*
- *	@brief Checks if a method is allowed in a given location.
- *	@param method	The method to check.
- *	@param location	The location.
- *	@return	TRUE if the method is allowed, FALSE if not.
+ *	@brief Checks if auto-index is true or false. If true, generates an index.html page.
+ *	If false, checks if an index page exists or is specified.
+ *	@param server The server.
+ *	@param path The complete path to the directory to check for auto-index.
+ *	@param requestPath The relative path contained in the request.
+ *	@location The location.
+ *	@return	TRUE if auto-index is valid, FALSE if not.
 */
-bool	Response::_CheckAutoIndex(const Server &server, const Location &location)
+bool	Response::_CheckAutoIndex(const Server &server, std::string &path, \
+					const std::string &requestPath, const Location &location)
 {
-	bool	autoIndex = location.getAutoIndex();
+	struct stat	s;
 
-	if (autoIndex == true)
-			return (true);
+	if (stat((path).c_str(), &s) == 0 && s.st_mode & S_IFDIR)
+	{
+		if (location.getAutoIndex() && !_GenerateIndexPage(path, requestPath))
+			return (false);
 
-	std::string	index = "/index.html";
-	if (location.getIndex().size() > 0)
-		index = location.getIndex();
-	
-	std::string	path = location.getLocation();
-	if (index[0] != '/')
-		index = "/" + index;
-	if (path[path.size() - 1] == '/')
-			path.erase(path.size() - 1);
-	
-	std::string	root = server.getRoot();
-	if (root[root.length() - 1] == '/')
-		root.erase(root.length() - 1, 1);
+		std::string index = location.getIndex();
+		if (index.empty())
+			index = "index.html";
+		else if (index[0] == '/')
+			index.erase(0, 1);
 
-	std::ifstream	file((root + path + index).c_str());
-	if (!file.good())
-		return (false);
+		std::string locationPath = location.getLocation();
+		if (!locationPath.empty() && locationPath != "/")
+		{
+			if (locationPath[0] == '/')
+				locationPath.erase(0, 1);
+			if (path != server.getRoot() + locationPath)
+				return (false);
+		}
+
+		if (path[path.size() - 1] != '/')
+			path = path + "/";
+		path = path + index;
+
+		std::cout << "DONC ON A COMME PATH: '" << path << "'" << std::endl;
+
+		std::ifstream	file;
+		file.open(path.c_str());
+		if (!file)
+			return (false);
+		file.close();
+	}
+
 	return (true);
 }
+
+/*
+ *	@brief Generates an index.html page if autoindex is ON.
+ *	@param path The path of the directory in which the index page will be generated.
+ *	@param requestPath The relative path from the request.
+ *	@return TRUE if the index page was generated without error, FALSE if errors was found.
+*/
+bool Response::_GenerateIndexPage(const std::string &path, const std::string &requestPath)
+{
+	std::string		indexPath = path + "/index.html";
+	if (path[path.size() - 1] == '/')
+		indexPath = path + "index.html";
+
+	DIR				*dir;
+	dir = opendir(path.c_str());
+	if (!dir)
+	{
+		Logger::error("Failed to open directory '" + path + "' (to auto-generate an index page).");
+		return (false);
+	}
+
+	std::ofstream	indexFile;
+	indexFile.open(indexPath.c_str());
+	if (!indexFile)
+	{
+		Logger::error("Failed to create index.html in '" + path + "' (to auto-generate an index page).");
+		closedir(dir);
+		return (false);
+	}
+
+	indexFile << "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n";
+	indexFile << "<meta charset=\"UTF-8\">\n";
+	indexFile << "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
+	indexFile << "<title>Webserv</title>\n";
+	indexFile << "<link rel=\"stylesheet\" href=\"style.css\">\n";
+	indexFile << "</head>\n<body>\n";
+	indexFile << "<header>\n<nav>\n<ul>\n";
+	indexFile << "<li><a href=\"/index.html\">Home</a></li>\n";
+	indexFile << "<li><a href=\"/post.html\">Upload a file</a></li>\n";
+	indexFile << "<li><a href=\"/cgi.html\">CGI Scripts</a></li>\n";
+	indexFile << "<li><a href=\"/nonexistent.html\">Error 404</a></li>\n";
+	indexFile << "</ul>\n</nav>\n</header>\n";
+	indexFile << "<main>\n";
+	indexFile << "<h1>Index of " << requestPath << "</h1>\n";
+	indexFile << "<ul>\n";
+
+	struct dirent	*entry;
+	while ((entry = readdir(dir)))
+	{
+		std::string name = entry->d_name;
+		
+		if (name == "." || name == "..")
+			continue;
+
+		std::string fullPath = path;
+		if (fullPath[fullPath.size() - 1] != '/')
+			fullPath = fullPath + "/";
+		fullPath = fullPath + name;
+
+		std::string	linkPath = requestPath;
+		if (linkPath[linkPath.size() - 1] != '/')
+			linkPath = linkPath + "/";
+		linkPath = linkPath + name;
+		
+		struct stat s;
+		if (stat(fullPath.c_str(), &s) == 0)
+		{
+			if (s.st_mode & S_IFDIR)
+			{
+				indexFile << "<li><a href=\"" << linkPath << "/\"  class=\"uploaded-files-link\">" << name << "</a></li>\n";
+			}
+			else
+			{
+				indexFile << "<li><a href=\"" << linkPath << "\"  class=\"uploaded-files-link\">" << name << "</a></li>\n";
+			}
+		}
+	}
+
+	indexFile << "</ul>\n";
+	indexFile << "</body>\n</html>";
+
+	indexFile.close();
+	closedir(dir);
+
+	Logger::info("Generated index.html for directory '" + path + "'.");
+
+	return (true);
+}
+
 
 /*
  *	@brief Gets the hidden method from a request.

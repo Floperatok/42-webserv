@@ -35,9 +35,13 @@ class Response
 		static std::string	_GetContentType(const std::string &request, const std::string &path);
 		static Location		_GetLocation(const Server &server, const std::string &path);
 		static bool			_IsMethodAllowed(const std::string &method, Location &location);
-		static bool			_CheckAutoIndex(const Server &server, const Location &location);
 		static std::string	_GetMethod(const std::string &request);
 		static bool			_CheckBodySize(const std::string &request, size_t maxBodySize);
+
+		// Auto-Index
+		static bool			_CheckAutoIndex(const Server &server, std::string &path, \
+								const std::string &requestPath, const Location &location);
+		static bool			_GenerateIndexPage(const std::string &path, const std::string &requestPath);
 
 		// GET Methods
 		static int			_WritePage(int fd, const Server &server, const std::string &path, \

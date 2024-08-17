@@ -177,7 +177,7 @@ std::string	Cgi::GenerateCgiPage()
 				<< "\t\t<nav>\n"
 				<< "\t\t\t<ul>\n"
 				<< "\t\t\t\t<li><a href=\"index.html\">Home</a></li>\n"
-				<< "\t\t\t\t<li><a href=\"post.html\">POST</a></li>\n"
+				<< "\t\t\t\t<li><a href=\"post.html\">Upload a file</a></li>\n"
 				<< "\t\t\t\t<li><a href=\"cgi.html\">CGI Scripts</a></li>\n"
 				<< "\t\t\t\t<li><a href=\"nonexistent.html\">Error 404</a></li>\n"
 				<< "\t\t\t</ul>\n"

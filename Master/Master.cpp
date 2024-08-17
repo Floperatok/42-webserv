@@ -189,7 +189,7 @@ int	Master::_readSocket(const int sockfd, std::string &receivedData)
 	if (headersReceived && receivedData.size() >= headersEndPos + 4 + contentLength)
 	{
 		Logger::info("Request fully received from socket " + Utils::IntToStr(sockfd) + ".");
-		// Logger::debug("Received request:\n'" + receivedData + "'");
+		Logger::debug("Received request:\n'" + receivedData + "'");
 		return (1);
 	}
 	// Logger::debug("Request received but not complete:\n" + receivedData + "'");

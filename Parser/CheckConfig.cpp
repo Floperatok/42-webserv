@@ -230,7 +230,7 @@ void CheckConfig::_CheckKeywords(const std::string &content)
 				if (parameter.find_first_not_of("0123456789") != std::string::npos)
 					throw (WrongParameterException("Invalid client_max_body_size '" + parameter + "'."));
 			}
-			else if (parameter.find("error_page") != std::string::npos)
+			else if (parameter.find("error_page") != std::string::npos && parameter.find("location") == std::string::npos)
 			{
 				if (parameter[10] != ' ')
 					throw (WrongParameterException("Invalid error page '" + parameter + "'."));
