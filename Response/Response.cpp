@@ -676,8 +676,6 @@ bool	Response::_CheckAutoIndex(const Server &server, std::string &path, \
 			path = path + "/";
 		path = path + index;
 
-		std::cout << "DONC ON A COMME PATH: '" << path << "'" << std::endl;
-
 		std::ifstream	file;
 		file.open(path.c_str());
 		if (!file)
