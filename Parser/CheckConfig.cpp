@@ -131,7 +131,7 @@ bool CheckConfig::_CheckServerKeywords(const std::string &content)
 		}
 		if (keyword.length() == 0 && content[i] == '\0')
 			break ;
-		if (keyword.compare("server"))
+		if (keyword != "server")
 			return (false);
 		else
 		{

@@ -65,6 +65,7 @@ int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string req
 		return (Forbidden403(fd, server));
 	}
 
+
 	if (method == "GET" && _IsMethodAllowed(method, location))
 	{
 		_GenerateCgiPage(root, req[1]);
@@ -773,7 +774,7 @@ std::string	Response::_GetPath(const Server &server, const std::string &subPath)
 		root.erase(root.length() - 1, 1);
 
 	std::string	path = root + subPath;
-	if (!subPath.compare("/"))
+	if (subPath == "/")
 		path = root + "/" + server.getIndex();
 
 	return (path);
@@ -806,7 +807,7 @@ std::string	Response::_GetContentType(const std::string &request, const std::str
 	if (path.find(".") == std::string::npos)
 		return ("text/plain");
 	
-	if (!path.compare(path.length() - 12, 12, "/favicon.ico"))
+	if (path == "/favicon.ico")
 		return ("image/x-icon");
 
 	std::string					contentType;

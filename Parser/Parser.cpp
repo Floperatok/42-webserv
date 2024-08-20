@@ -178,7 +178,7 @@ void	Parser::_ParseServer(std::vector<std::string> &parameters, Server &server)
 		else if (parameter.find("host") == 0)
 		{
 			parameter.erase(0, 5);
-			if (!parameter.compare("localhost"))
+			if (parameter == "localhost")
 				parameter = "127.0.0.1";
 			server.setHost(parameter);
 		}
