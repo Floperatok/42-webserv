@@ -1,11 +1,9 @@
 
-#ifndef CGI_HPP
-# define CGI_HPP
+#pragma once
 
-# include <unistd.h>
-
-# include "Libs.hpp"
-# include "Logger.hpp"
+#include "Libs.hpp"
+#include "Logger.hpp"
+#include "Utils.hpp"
 
 class Cgi
 {
@@ -20,5 +18,3 @@ public:
 										std::string &content, char **env);
 	static std::string	GenerateCgiPage();
 };
-
-#endif

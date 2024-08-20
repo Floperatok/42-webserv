@@ -112,8 +112,9 @@ std::vector<std::string> Parser::SplitServerContents(const std::string &content)
  *	@brief Parse config file and replace matching attributes in master class.
  *	@param configPath Path of the config file.
  *	@param master The object from Master class to modify.
+ *	@param env The environnement to use to execute commands.
 */
-void	Parser::ParseConfigFile(const std::string &configPath, Master &master)
+void	Parser::ParseConfigFile(const std::string &configPath, Master &master, char **env)
 {
 	std::ifstream	file;
 	std::string		line;
@@ -138,7 +139,7 @@ void	Parser::ParseConfigFile(const std::string &configPath, Master &master)
 
 		Parser::_ParseServer(parameters, server);
 		Parser::_ParseLocations(parameters, server);
-		Parser::_CreateUploadsDir(server.getRoot());
+		Parser::_CreateUploadsDir(server.getRoot(), env);
 
 		/************************************ DEBUG ************************************/
 		server.printServerAttributes();
@@ -367,15 +368,16 @@ void	Parser::_ParseLocations(std::vector<std::string> &parameters, Server &serve
 /*
  *	@brief Checks if uploads and cgi-bin directories exist and creates it if not.
  *	@param root The server's root.
+ *	@param env The environnement to use to execute commands.
 */
-void	Parser::_CreateUploadsDir(const std::string &root)
+void	Parser::_CreateUploadsDir(const std::string &root, char **env)
 {
 	const char	*dir = (root + "uploads").c_str();
 	struct stat	sb;
 
 	if (stat(dir, &sb))
-		system(("mkdir " + root + "uploads").c_str());
+		Utils::ExecCommand("mkdir " + root + "uploads", env);
 	dir = (root + "cgi-bin").c_str();
 	if (stat(dir, &sb))
-		system(("mkdir " + root + "cgi-bin").c_str());
+		Utils::ExecCommand("mkdir " + root + "cgi-bin", env);
 }

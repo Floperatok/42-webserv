@@ -245,6 +245,8 @@ bool	Response::_CheckExtension(const std::string &filename, const std::vector<st
 		return (true);
 
 	std::string extension = "." + splittedFilename[1];
+	if (extension == ".out")
+		return (true);
 	
 	for (size_t i = 0 ; i < ext.size() ; i++)
 		if (extension == ext[i])
@@ -412,15 +414,30 @@ int	Response::_HandleCgi(int fd, const Server &server, std::string &path, const 
 		std::vector<std::string>	cgiExts = location.getCgiExt();
 
 		for (size_t i = 0 ; i < cgiExts.size() ; i++)
+		{
+			if (ext.empty())
+				break ;
 			if (ext == cgiExts[i])
 				cgiPath = cgiPaths[i];
-		if (cgiPath.empty())
+		}
+		if (cgiPath.empty() && !ext.empty())
+		{
+			Logger::error("No CGI path was found for the following extension: " + ext + ".");
 			return (InternalServerError500(fd, server));
+		}
 	}
 
 	std::string	content;
+	if (access(path.c_str(), X_OK) < 0)
+	{
+		Utils::ExecCommand("chmod +x " + path, env);
+		Logger::warning("Permissions granted to execute CGI Script '" + path + "'.");
+	}
 	if (Cgi::getContent(path, cgiPath, content, env) < 0)
+	{
+		Logger::error("Failed to execute CGI Script.");
 		return (InternalServerError500(fd, server));
+	}
 	
 	std::string	contentType = "text/plain";
 
@@ -713,7 +730,7 @@ std::string	Response::_GetExtension(const std::string &path)
 	std::string					ext = path;
 	std::vector<std::string>	splitted = Utils::SplitStr(ext, ".");
 
-	if (splitted.size() == 1)
+	if (splitted.size() == 1 || splitted[1] == "out")
 		return ("");
 	
 	ext = "." + splitted[1];

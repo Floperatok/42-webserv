@@ -22,7 +22,7 @@ int	main(int argc, char **argv, char **env)
 
 		// Parse config file
 		Master master;
-		Parser::ParseConfigFile(configFilePath, master);
+		Parser::ParseConfigFile(configFilePath, master, env);
 
 		// Setup and run servers
 		master.setupServers();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Libs.hpp"
+#include "Logger.hpp"
 
 class Utils
 {
@@ -11,6 +12,7 @@ class Utils
 		static std::string				IntToStr(int n);
 		static std::vector<std::string> SplitStr(const std::string &str, const char *charset);
 		static void 					TrimStr(std::string &str, const char *charset);
+		static void						ExecCommand(const std::string &command, char **env);
 
 	private:
 		// Constructors

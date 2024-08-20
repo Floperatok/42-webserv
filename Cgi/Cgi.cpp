@@ -118,7 +118,7 @@ int	Cgi::getContent(const std::string &filepath, const std::string &cgiPath, std
 
 				if (execve("a.out", args, env) < 0)
 				{
-					Logger::error("Cannot run 'a.out': " + std::string(strerror(errno)));
+					Logger::error("Cannot run 'a.out': " + std::string(strerror(errno)) + ".");
 					exit(EXIT_FAILURE);
 				}
 			}
