@@ -271,7 +271,7 @@ void	Master::_manageClientsRequests(char **env, size_t *i)
 			}
 			
 			int	statusCode = Response::SendResponse(_servers, _fds[*i].fd, _requests[*i], env);
-			if (statusCode != 200)
+			if (statusCode != 200 && statusCode != 301 && statusCode != 302)
 				Logger::error("Failed to send response to the client. Status code: " \
 								+ Utils::IntToStr(statusCode) + ".");
 			_requests[*i] = "";
@@ -339,6 +339,8 @@ void Master::_RemoveFd(unsigned int index)
 	Logger::info("Closing socket " + Utils::IntToStr(_fds[index].fd) + ".");
 	
 	close(_fds[index].fd);
+
+	_requests[index] = "";
 
 	for (unsigned int i = index; i < _nfds - 1; i++)
 		_fds[i] = _fds[i + 1];
