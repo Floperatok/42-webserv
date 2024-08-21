@@ -134,7 +134,7 @@ int	Master::_createClientSocket(Server &server)
 		&servaddrLen)) < 0)
 	{
 		Logger::warning("Failed to accept the socket binded on the port " + Utils::IntToStr(server.getPort()) + ".");
-		Response::ServiceUnavailable503(server.getSockfd(), server);
+		// Response::ServiceUnavailable503(server.getSockfd(), server);
 		return (-1);
 	}
 	Logger::info("New client's socket created on port " + Utils::IntToStr(ntohs(server.getServaddr().sin_port)) \
@@ -189,7 +189,7 @@ int	Master::_readSocket(const int sockfd, std::string &receivedData)
 	if (headersReceived && receivedData.size() >= headersEndPos + 4 + contentLength)
 	{
 		Logger::info("Request fully received from socket " + Utils::IntToStr(sockfd) + ".");
-		Logger::debug("Received request:\n'" + receivedData + "'");
+		// Logger::debug("Received request:\n'" + receivedData + "'");
 		return (1);
 	}
 	// Logger::debug("Request received but not complete:\n" + receivedData + "'");
@@ -232,6 +232,8 @@ void	Master::_manageClientsRequests(char **env, size_t *i)
 {
 	if (*i >= _nfds)
 		*i = _nbServers;
+	if (*i < _nbServers)
+		*i = _nbServers;
 
 	for (; *i < _nfds ; (*i)++)
 	{
@@ -255,13 +257,10 @@ void	Master::_manageClientsRequests(char **env, size_t *i)
 		}
 		if (_fds[*i].revents & POLLIN)
 		{
-			Logger::debug("Reading socket " + Utils::IntToStr(_fds[*i].fd) + "...");
-
 			int	r = _readSocket(_fds[*i].fd, _requests[*i]);
 			if (r < 0)
 			{
 				_RemoveFd(*i);
-				(*i)--;
 				return ;
 			}
 			else if (r == 0)
