@@ -12,7 +12,8 @@ SRCS			=	main.cpp \
 				Response/Response.cpp \
 				Parser/CheckConfig.cpp \
 				Parser/Parser.cpp \
-				Cgi/Cgi.cpp
+				Cgi/Cgi.cpp\
+				Cookie/Cookie.cpp
 
 OBJ_PATH	=	objs/
 OBJS		=	$(addprefix $(OBJ_PATH), $(SRCS:.cpp=.o))

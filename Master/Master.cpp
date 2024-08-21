@@ -50,7 +50,7 @@ void	Master::setupServers(void)
 {
 	std::vector<Server>::iterator	it = _servers.begin();
 	std::vector<Server>::iterator	ite = _servers.end();
-
+	std::vector<std::string> emptyVector;
 	for ( ; it != ite; it++)
 	{
 		Logger::info("Setting up server at port " + Utils::IntToStr(it->getPort()) + ".");
@@ -58,7 +58,7 @@ void	Master::setupServers(void)
 		if (!it->setup())
 		{
 			Logger::error("Server setup failed.");
-            Response::InternalServerError500(it->getSockfd(), *it);
+            Response::InternalServerError500(it->getSockfd(), *it, emptyVector);
 		}
 	}
 	_nbServers = _servers.size();
@@ -97,6 +97,7 @@ void	Master::_initFds(void)
 */
 void	Master::_storeFd(int fd, const Server &server, const short events)
 {
+	std::vector<std::string> emptyVector;
 	Logger::debug("Storing client socket_fd " + Utils::IntToStr(fd) + " in the fds array.");
 	if (fd < 0)
 	{
@@ -108,7 +109,7 @@ void	Master::_storeFd(int fd, const Server &server, const short events)
 		i++;
 	if (i == MAX_CLIENT)
 	{
-		Response::ServiceUnavailable503(fd, server);
+		Response::ServiceUnavailable503(fd, server, emptyVector);
 		_RemoveFd(i);
 		Logger::error("Max client limit reached, connection closed.");
 	}
@@ -128,13 +129,13 @@ int	Master::_createClientSocket(Server &server)
 	int					clientSocket;
 	struct sockaddr_in	servaddr = server.getServaddr();
 	socklen_t			servaddrLen = sizeof(servaddr);
-
+	std::vector<std::string> emptyVector;
 	if ((clientSocket = accept(server.getSockfd(), 
 		(struct sockaddr *)&servaddr,
 		&servaddrLen)) < 0)
 	{
 		Logger::warning("Failed to accept the socket binded on the port " + Utils::IntToStr(server.getPort()) + ".");
-		Response::ServiceUnavailable503(server.getSockfd(), server);
+		Response::ServiceUnavailable503(server.getSockfd(), server, emptyVector);
 		return (-1);
 	}
 	Logger::info("New client's socket created on port " + Utils::IntToStr(ntohs(server.getServaddr().sin_port)) \
@@ -269,8 +270,17 @@ void	Master::_manageClientsRequests(char **env, size_t *i)
 				(*i)--;
 				return ;
 			}
-			
-			int	statusCode = Response::SendResponse(_servers, _fds[*i].fd, _requests[*i], env);
+			/* cookies */
+			std::string cookies = extractCookies(_requests[*i]);
+    		std::string sessionID = getCookieValue(cookies, "session_id");
+			if (sessionID.length() != 6)
+				sessionID = generateRandomSessionID();
+			if (!sessionID.empty())
+        		Logger::debug("Session ID: " + sessionID);
+			else 
+        		Logger::debug("No session ID found in the request.");
+			/* cookies */
+			int	statusCode = Response::SendResponse(_servers, _fds[*i].fd, _requests[*i], env, sessionID);
 			if (statusCode != 200 && statusCode != 301 && statusCode != 302)
 				Logger::error("Failed to send response to the client. Status code: " \
 								+ Utils::IntToStr(statusCode) + ".");

@@ -39,7 +39,7 @@ Response &Response::operator=(const Response &rhs)
  *	@param env The environnement to use for CGI Scripts.
  *	@return	The status code of the response sent.
 */
-int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string request, char **env)
+int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string request, char **env, std::string sessionId)
 {
 	std::string					status = "200 OK";
 	std::string					line = request.substr(0, request.find('\n'));
@@ -50,11 +50,11 @@ int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string req
 	std::string					path = _GetPath(server, req[1]);
 	Location					location = _GetLocation(server, path);
 	size_t						maxBodySize = server.getMaxBodySize();
-	
+	std::vector<std::string>	cookies;
 	if (!_CheckBodySize(request, maxBodySize))
 	{
 		Logger::error("The request's body size exceeds the body size limit.");
-		return (ContentTooLarge413(fd, server));
+		return (ContentTooLarge413(fd, server, cookies));
 	}
 
 	_CheckRedirection(server, location, path, status);
@@ -62,24 +62,25 @@ int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string req
 	if (!_CheckAutoIndex(server, location, path, req[1]))
 	{
 		Logger::error("Auto-Index is OFF and no index was found.");
-		return (Forbidden403(fd, server));
+		return (Forbidden403(fd, server, cookies));
 	}
 
+	cookies.push_back("session_id=" + sessionId + "; Path=/; HttpOnly");
 
 	if (method == "GET" && _IsMethodAllowed(method, location))
 	{
 		_GenerateCgiPage(root, req[1]);
 		if (req[1].find("/cgi-bin/cgi_script?script=") != std::string::npos)
-			return (_HandleCgi(fd, server, req[1], location, env));
-		return (_WritePage(fd, server, path, _GetContentType(request, path), status));
+			return (_HandleCgi(fd, server, req[1], location, env, cookies));
+		return (_WritePage(fd, server, path, _GetContentType(request, path), status, cookies));
 	}
 	else if (method == "POST" && _IsMethodAllowed(method, location) && _GetMethod(request) == "")
-		return (_HandlePost(fd, server, request, req[1], location));
+		return (_HandlePost(fd, server, request, req[1], location, cookies));
 	else if (method == "POST" && _GetMethod(request) == "DELETE" && _IsMethodAllowed("DELETE", location))
-		return (_HandleDelete(fd, server, request, root));
+		return (_HandleDelete(fd, server, request, root, cookies));
 		
 	Logger::error("The request's method is not allowed.");
-	return (MethodNotAllowed405(fd, server));
+	return (MethodNotAllowed405(fd, server, cookies));
 }
 
 
@@ -96,7 +97,8 @@ int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string req
  *	@return	The status code.
 */
 int	Response::_WritePage(int fd, const Server &server, const std::string &path, \
-				const std::string &type, const std::string &status, bool recursed)
+				const std::string &type, const std::string &status, \
+				const std::vector<std::string> &cookies, bool recursed)
 {
 	std::ifstream		file(path.c_str(), std::ios::in | std::ios::binary);
 
@@ -105,22 +107,27 @@ int	Response::_WritePage(int fd, const Server &server, const std::string &path, 
 		Logger::error("Can't open file '" + path + "'.");
 		if (recursed)
 			return (-1);
-		return (NotFound404(fd, server));
+		return (NotFound404(fd, server, cookies));
 	}
 	
 	std::vector<char> content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 	
 	file.close();
 
-	std::string header = "HTTP/1.1 " + status + "\r\nContent-Type: " + type + "\r\nContent-Length: " \
-			+ Utils::IntToStr(content.size()) + "\r\n\r\n";
+	std::string header = "HTTP/1.1 " + status + "\r\nContent-Type: " + type + "\r\n";
+	if (!cookies.empty())
+	{
+		for (size_t i = 0; i < cookies.size(); ++i)
+			header += "Set-Cookie: " + cookies[i] + "\r\n";
+	}
+	header += "Content-Length: " + Utils::IntToStr(content.size()) + "\r\n\r\n";
 
 	if (send(fd, header.c_str(), header.size(), MSG_NOSIGNAL) < 0)
 	{
 		Logger::error("Failed to write header.");
 		if (recursed)
 			return (-1);
-		return (InternalServerError500(fd, server));
+		return (InternalServerError500(fd, server, cookies));
 	}
 
 	ssize_t bytesWritten = send(fd, content.data(), content.size(), MSG_NOSIGNAL);
@@ -129,14 +136,14 @@ int	Response::_WritePage(int fd, const Server &server, const std::string &path, 
 		Logger::error("Failed to write content.");
 		if (recursed)
 			return (-1);
-		return (InternalServerError500(fd, server));
+		return (InternalServerError500(fd, server, cookies));
 	}
 	else if (static_cast<size_t>(bytesWritten) != content.size())
 	{
 		Logger::error("Incomplete content written.");
 		if (recursed)
 			return (-1);
-		return InternalServerError500(fd, server);
+		return InternalServerError500(fd, server, cookies);
 	}
 
 	Logger::debug("Response sent: HTTP/1.1 " + status + " | Content-Type: " + type \
@@ -157,7 +164,8 @@ int	Response::_WritePage(int fd, const Server &server, const std::string &path, 
  *	@return	200 in case of success, 500 in case of error.
 */
 int Response::_HandlePost(int fd, const Server &server, const std::string &request, \
-					const std::string &path, const Location &location)
+					const std::string &path, const Location &location, \
+					const std::vector<std::string> &cookies)
 {
 	std::string		root = server.getRoot();
     std::string		body = request.substr(request.find("\r\n\r\n") + 4);
@@ -166,31 +174,31 @@ int Response::_HandlePost(int fd, const Server &server, const std::string &reque
     std::string		fileData = _ExtractFileData(body, boundary);
 
 	if (path == "/cgi-bin" && !_CheckExtension(filename, location.getCgiExt()))
-		return (Forbidden403(fd, server));
+		return (Forbidden403(fd, server, cookies));
 
     std::string		uploadPath = root + "uploads/" + filename;
 	if (path == "/cgi-bin")
 		uploadPath = root + "cgi-bin/" + filename;
 
 	if (boundary.empty() || filename.empty() || fileData.empty())
-		return (InternalServerError500(fd, server));
+		return (InternalServerError500(fd, server, cookies));
 	
     std::ofstream	outFile(uploadPath.c_str(), std::ios::binary);
     if (!outFile)
 	{
 		Logger::error("Failed to open '" + uploadPath + "' for writting.");
-        return (InternalServerError500(fd, server));
+        return (InternalServerError500(fd, server, cookies));
 	}
     
     outFile.write(fileData.c_str(), fileData.size());
     outFile.close();
 
 	if (path == "/cgi-bin")
-		_WritePage(fd, server, root + "script_uploaded.html", "text/html", "200 OK");
+		_WritePage(fd, server, root + "script_uploaded.html", "text/html", "200 OK", cookies);
 	else
 	{
 	_UpdateUploadsPage(root);
-	_WritePage(fd, server, root + "file_uploaded.html", "text/html", "200 OK");
+	_WritePage(fd, server, root + "file_uploaded.html", "text/html", "200 OK", cookies);
 	}
     
     return (200);
@@ -349,19 +357,19 @@ void	Response::_UpdateUploadsPage(const std::string &root)
  *	@return	200 in case of success.
  *	@return 500 in case of error.
 */
-int Response::_HandleDelete(int fd, const Server &server, const std::string &request, const std::string &root)
+int Response::_HandleDelete(int fd, const Server &server, const std::string &request, const std::string &root, const std::vector<std::string> &cookies)
 {
     std::string path = root + "uploads/" + _GetFilePathToDelete(request);
 
     if (std::remove(path.c_str()))
     {
         Logger::error(("Failed to delete file: " + path).c_str());
-        return (InternalServerError500(fd, server));
+        return (InternalServerError500(fd, server, cookies));
     }
 
 	_UpdateUploadsPage(root);
 
-    _WritePage(fd, server, "www/file_deleted.html", "text/html", "200 OK");
+    _WritePage(fd, server, "www/file_deleted.html", "text/html", "200 OK", cookies);
 
     return (200);
 }
@@ -397,7 +405,7 @@ std::string	Response::_GetFilePathToDelete(const std::string &request)
  *	@param location The CGI location.
  *	@return The appropriate status code.
 */
-int	Response::_HandleCgi(int fd, const Server &server, std::string &path, const Location &location, char **env)
+int	Response::_HandleCgi(int fd, const Server &server, std::string &path, const Location &location, char **env, const std::vector<std::string> &cookies)
 {
 	
 	path.erase(9, 18);
@@ -424,7 +432,7 @@ int	Response::_HandleCgi(int fd, const Server &server, std::string &path, const 
 		if (cgiPath.empty() && !ext.empty())
 		{
 			Logger::error("No CGI path was found for the following extension: " + ext + ".");
-			return (InternalServerError500(fd, server));
+			return (InternalServerError500(fd, server, cookies));
 		}
 	}
 
@@ -437,7 +445,7 @@ int	Response::_HandleCgi(int fd, const Server &server, std::string &path, const 
 	if (Cgi::getContent(path, cgiPath, content, env) < 0)
 	{
 		Logger::error("Failed to execute CGI Script.");
-		return (InternalServerError500(fd, server));
+		return (InternalServerError500(fd, server, cookies));
 	}
 	
 	std::string	contentType = "text/plain";
@@ -460,19 +468,19 @@ int	Response::_HandleCgi(int fd, const Server &server, std::string &path, const 
 	if (send(fd, headers.c_str(), headers.size(), MSG_NOSIGNAL) < 0)
 	{
 		Logger::error("Failed to write content.");
-		return (InternalServerError500(fd, server));
+		return (InternalServerError500(fd, server, cookies));
 	}
 
 	ssize_t	bytesWritten = send(fd, content.c_str(), content.size(), MSG_NOSIGNAL);
 	if (bytesWritten < 0)
 	{
 		Logger::error("Failed to write CGI content.");
-		return (InternalServerError500(fd, server));
+		return (InternalServerError500(fd, server, cookies));
 	}
 	else if (static_cast<size_t>(bytesWritten) != content.size())
 	{
 		Logger::error("Incomplete CGI content written.");
-		return InternalServerError500(fd, server);
+		return InternalServerError500(fd, server, cookies);
 	}
 
 	Logger::debug("Response sent: HTTP/1.1 200 OK | Content-Type: " + contentType \
@@ -968,7 +976,7 @@ void	Response::_ReplaceRootInLocation(const Server &server, Location &location, 
  *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::BadRequest400(int fd, const Server &server)
+int	Response::BadRequest400(int fd, const Server &server, const std::vector<std::string> &cookies)
 {
 	std::string	root = server.getRoot();
 	std::string	path = server.getErrorPage400();
@@ -978,7 +986,7 @@ int	Response::BadRequest400(int fd, const Server &server)
 	else
 		path = root + path;
 
-	if (_WritePage(fd, server, path, "text/html", "400 Bad Request", true) == -1)
+	if (_WritePage(fd, server, path, "text/html", "400 Bad Request", cookies,  true) == -1)
 		Logger::error("Failed to send 400 response.");
 
 	return (400);
@@ -990,7 +998,7 @@ int	Response::BadRequest400(int fd, const Server &server)
  *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::Forbidden403(int fd, const Server &server)
+int	Response::Forbidden403(int fd, const Server &server, const std::vector<std::string> &cookies)
 {
 	std::string	root = server.getRoot();
 	std::string	path = server.getErrorPage403();
@@ -1000,7 +1008,7 @@ int	Response::Forbidden403(int fd, const Server &server)
 	else
 		path = root + path;
 
-	if (_WritePage(fd, server, path, "text/html", "403 Forbidden", true) == -1)
+	if (_WritePage(fd, server, path, "text/html", "403 Forbidden", cookies, true) == -1)
 		Logger::error("Failed to send 403 response.");
 	
 	return (403);
@@ -1012,7 +1020,7 @@ int	Response::Forbidden403(int fd, const Server &server)
  *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::NotFound404(int fd, const Server &server)
+int	Response::NotFound404(int fd, const Server &server, const std::vector<std::string> &cookies)
 {
 	std::string	root = server.getRoot();
 	std::string	path = server.getErrorPage404();
@@ -1022,7 +1030,7 @@ int	Response::NotFound404(int fd, const Server &server)
 	else
 		path = root + path;
 
-	if (_WritePage(fd, server, path, "text/html", "404 Not Found", true) == -1)
+	if (_WritePage(fd, server, path, "text/html", "404 Not Found", cookies, true) == -1)
 		Logger::error("Failed to send 404 response.");
 
 	return (404);
@@ -1034,7 +1042,7 @@ int	Response::NotFound404(int fd, const Server &server)
  *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::MethodNotAllowed405(int fd, const Server &server)
+int	Response::MethodNotAllowed405(int fd, const Server &server, const std::vector<std::string> &cookies)
 {
 	std::string	root = server.getRoot();
 	std::string	path = server.getErrorPage405();
@@ -1044,7 +1052,7 @@ int	Response::MethodNotAllowed405(int fd, const Server &server)
 	else
 		path = root + path;
 
-	if (_WritePage(fd, server, path, "text/html", "405 Method Not Allowed", true) == -1)
+	if (_WritePage(fd, server, path, "text/html", "405 Method Not Allowed", cookies, true) == -1)
 		Logger::error("Failed to send 405 response.");
 
 	return (405);
@@ -1056,7 +1064,7 @@ int	Response::MethodNotAllowed405(int fd, const Server &server)
  *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::RequestTimeout408(int fd, const Server &server)
+int	Response::RequestTimeout408(int fd, const Server &server, const std::vector<std::string> &cookies)
 {
 	std::string	root = server.getRoot();
 	std::string	path = server.getErrorPage408();
@@ -1066,7 +1074,7 @@ int	Response::RequestTimeout408(int fd, const Server &server)
 	else
 		path = root + path;
 
-	if (_WritePage(fd, server, path, "text/html", "408 Request Timeout", true) == -1)
+	if (_WritePage(fd, server, path, "text/html", "408 Request Timeout", cookies, true) == -1)
 		Logger::error("Failed to send 408 response.");
 
 	return (408);
@@ -1078,7 +1086,7 @@ int	Response::RequestTimeout408(int fd, const Server &server)
  *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::ContentTooLarge413(int fd, const Server &server)
+int	Response::ContentTooLarge413(int fd, const Server &server, const std::vector<std::string> &cookies)
 {
 	std::string	root = server.getRoot();
 	std::string	path = server.getErrorPage413();
@@ -1088,7 +1096,7 @@ int	Response::ContentTooLarge413(int fd, const Server &server)
 	else
 		path = root + path;
 
-	if (_WritePage(fd, server, path, "text/html", "413 Content Too Large", true) == -1)
+	if (_WritePage(fd, server, path, "text/html", "413 Content Too Large", cookies, true) == -1)
 		Logger::error("Failed to send 413 response.");
 
 	return (413);
@@ -1100,7 +1108,7 @@ int	Response::ContentTooLarge413(int fd, const Server &server)
  *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::InternalServerError500(int fd, const Server &server)
+int	Response::InternalServerError500(int fd, const Server &server, const std::vector<std::string> &cookies)
 {
 	std::string	root = server.getRoot();
 	std::string	path = server.getErrorPage500();
@@ -1110,7 +1118,7 @@ int	Response::InternalServerError500(int fd, const Server &server)
 	else
 		path = root + path;
 
-	if (_WritePage(fd, server, path, "text/html", "500 Internal Server Error", true) == -1)
+	if (_WritePage(fd, server, path, "text/html", "500 Internal Server Error", cookies, true) == -1)
 		Logger::error("Failed to send 500 response.");
 
 	return (500);
@@ -1122,7 +1130,7 @@ int	Response::InternalServerError500(int fd, const Server &server)
  *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::MethodNotImplemented501(int fd, const Server &server)
+int	Response::MethodNotImplemented501(int fd, const Server &server, const std::vector<std::string> &cookies)
 {
 	std::string	root = server.getRoot();
 	std::string	path = server.getErrorPage501();
@@ -1132,7 +1140,7 @@ int	Response::MethodNotImplemented501(int fd, const Server &server)
 	else
 		path = root + path;
 
-	if (_WritePage(fd, server, path, "text/html", "501 Not Implemented", true) == -1)
+	if (_WritePage(fd, server, path, "text/html", "501 Not Implemented", cookies, true) == -1)
 		Logger::error("Failed to send 501 response.");
 
 	return (501);
@@ -1144,7 +1152,7 @@ int	Response::MethodNotImplemented501(int fd, const Server &server)
  *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::BadGateway502(int fd, const Server &server)
+int	Response::BadGateway502(int fd, const Server &server, const std::vector<std::string> &cookies)
 {
 	std::string	root = server.getRoot();
 	std::string	path = server.getErrorPage502();
@@ -1154,7 +1162,7 @@ int	Response::BadGateway502(int fd, const Server &server)
 	else
 		path = root + path;
 
-	if (_WritePage(fd, server, path, "text/html", "502 Bad Gateway", true) == -1)
+	if (_WritePage(fd, server, path, "text/html", "502 Bad Gateway", cookies, true) == -1)
 		Logger::error("Failed to send 502 response.");
 
 	return (502);
@@ -1166,7 +1174,7 @@ int	Response::BadGateway502(int fd, const Server &server)
  *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::ServiceUnavailable503(int fd, const Server &server)
+int	Response::ServiceUnavailable503(int fd, const Server &server, const std::vector<std::string> &cookies)
 {
 	std::string	root = server.getRoot();
 	std::string	path = server.getErrorPage503();
@@ -1176,7 +1184,7 @@ int	Response::ServiceUnavailable503(int fd, const Server &server)
 	else
 		path = root + path;
 
-	if (_WritePage(fd, server, path, "text/html", "503 Service Unavailable", true) == -1)
+	if (_WritePage(fd, server, path, "text/html", "503 Service Unavailable", cookies, true) == -1)
 		Logger::error("Failed to send 503 response.");
 
 	return (503);
@@ -1188,7 +1196,7 @@ int	Response::ServiceUnavailable503(int fd, const Server &server)
  *	@param path The path of the corresponding page (put an empty string to use the default page).
  *	@return	The corresponding status code.
 */
-int	Response::GatewayTimeout504(int fd, const Server &server)
+int	Response::GatewayTimeout504(int fd, const Server &server, const std::vector<std::string> &cookies)
 {
 	std::string	root = server.getRoot();
 	std::string	path = server.getErrorPage504();
@@ -1198,7 +1206,7 @@ int	Response::GatewayTimeout504(int fd, const Server &server)
 	else
 		path = root + path;
 
-	if (_WritePage(fd, server, path, "text/html", "504 Gateway Timeout", true) == -1)
+	if (_WritePage(fd, server, path, "text/html", "504 Gateway Timeout", cookies, true) == -1)
 		Logger::error("Failed to send 504 response.");
 
 	return (504);

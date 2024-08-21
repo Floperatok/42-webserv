@@ -6,7 +6,7 @@
 #include "Response.hpp"
 #include "Logger.hpp"
 #include "Cgi.hpp"
-
+#include "../Cookie/Cookie.hpp"
 
 class Master
 {

@@ -50,11 +50,13 @@ class Response
 
 		// GET Methods
 		static int			_WritePage(int fd, const Server &server, const std::string &path, \
-						const std::string &type, const std::string &status, bool recursed = false);
+						const std::string &type, const std::string &status, \
+						const std::vector<std::string> &cookies, bool recursed = false);
 		
 		// POST Methods
 		static int			_HandlePost(int fd, const Server &server, const std::string &request, \
-										const std::string &path, const Location &location);
+										const std::string &path, const Location &location, \
+										const std::vector<std::string> &cookies);
 		static std::string	_GetBoundary(const std::string &request);
 		static std::string	_ExtractFilename(const std::string &body);
 		static bool			_CheckExtension(const std::string &filename, const std::vector<std::string> &ext);
@@ -64,12 +66,13 @@ class Response
 
 		// DELETE Methods
 		static int			_HandleDelete(int fd, const Server &server, const std::string &request, \
-										const std::string &root);
+										const std::string &root, const std::vector<std::string> &cookies);
 		static std::string	_GetFilePathToDelete(const std::string &request);
 
 		// CGI
 		static int			_HandleCgi(int fd, const Server &server, std::string &path, \
-										const Location &location, char **env);
+										const Location &location, char **env, \
+										const std::vector<std::string> &cookies);
 		static void			_GenerateCgiPage(const std::string &root, const std::string &path);
 		static std::string	_GetExtension(const std::string &path);
 
@@ -78,18 +81,18 @@ class Response
 		~Response(void);
 
 		// Methods
-		static int			SendResponse(std::vector<Server> &servers, int fd, std::string request, char **env);
+		static int			SendResponse(std::vector<Server> &servers, int fd, std::string request, char **env, std::string sessionId);
 
 		// Error pages Methods
-		static int			BadRequest400(int fd, const Server &server);
-		static int			Forbidden403(int fd, const Server &server);
-		static int			NotFound404(int fd, const Server &server);
-		static int			MethodNotAllowed405(int fd, const Server &server);
-		static int			RequestTimeout408(int fd, const Server &server);
-		static int			ContentTooLarge413(int fd, const Server &server);
-		static int			InternalServerError500(int fd, const Server &server);
-		static int			MethodNotImplemented501(int fd, const Server &server);
-		static int			BadGateway502(int fd, const Server &server);
-		static int			ServiceUnavailable503(int fd, const Server &server);
-		static int			GatewayTimeout504(int fd, const Server &server);
+		static int			BadRequest400(int fd, const Server &server, const std::vector<std::string> &cookies);
+		static int			Forbidden403(int fd, const Server &server, const std::vector<std::string> &cookies);
+		static int			NotFound404(int fd, const Server &server, const std::vector<std::string> &cookies);
+		static int			MethodNotAllowed405(int fd, const Server &server, const std::vector<std::string> &cookies);
+		static int			RequestTimeout408(int fd, const Server &server, const std::vector<std::string> &cookies);
+		static int			ContentTooLarge413(int fd, const Server &server, const std::vector<std::string> &cookies);
+		static int			InternalServerError500(int fd, const Server &server, const std::vector<std::string> &cookies);
+		static int			MethodNotImplemented501(int fd, const Server &server, const std::vector<std::string> &cookies);
+		static int			BadGateway502(int fd, const Server &server, const std::vector<std::string> &cookies);
+		static int			ServiceUnavailable503(int fd, const Server &server, const std::vector<std::string> &cookies);
+		static int			GatewayTimeout504(int fd, const Server &server, const std::vector<std::string> &cookies);
 };
