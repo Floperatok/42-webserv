@@ -243,7 +243,7 @@ void	Master::_manageClientsRequests(char **env, size_t *i)
 			continue ;
 		if (_fds[*i].revents & POLLERR)
 		{
-			Logger::error("Socket " + Utils::IntToStr(_fds[*i].fd) + " has POLLERR in revents. Revents is " \
+			Logger::warning("Socket " + Utils::IntToStr(_fds[*i].fd) + " has POLLERR in revents. Revents is " \
 						+ Utils::IntToStr(_fds[*i].revents) + ".");
 			_RemoveFd(*i);
 			i--;
@@ -270,6 +270,9 @@ void	Master::_manageClientsRequests(char **env, size_t *i)
 				(*i)--;
 				return ;
 			}
+
+			// std::cout << _requests[*i] << std::endl;
+
 			/* cookies */
 			std::string cookies = extractCookies(_requests[*i]);
     		std::string sessionID = getCookieValue(cookies, "session_id");
