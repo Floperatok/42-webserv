@@ -191,7 +191,7 @@ int	Master::_readSocket(const int sockfd, std::string &receivedData)
 	if (headersReceived && receivedData.size() >= headersEndPos + 4 + contentLength)
 	{
 		Logger::info("Request fully received from socket " + Utils::IntToStr(sockfd) + ".");
-		Logger::debug("Received request:\n'" + receivedData + "'");
+		// Logger::debug("Received request:\n'" + receivedData + "'");
 		return (1);
 	}
 	// Logger::debug("Request received but not complete:\n" + receivedData + "'");
@@ -234,6 +234,8 @@ void	Master::_manageClientsRequests(char **env, size_t *i)
 {
 	if (*i >= _nfds)
 		*i = _nbServers;
+	if (*i < _nbServers)
+		*i = _nbServers;
 
 	for (; *i < _nfds ; (*i)++)
 	{
@@ -257,13 +259,10 @@ void	Master::_manageClientsRequests(char **env, size_t *i)
 		}
 		if (_fds[*i].revents & POLLIN)
 		{
-			Logger::debug("Reading socket " + Utils::IntToStr(_fds[*i].fd) + "...");
-
 			int	r = _readSocket(_fds[*i].fd, _requests[*i]);
 			if (r < 0)
 			{
 				_RemoveFd(*i);
-				(*i)--;
 				return ;
 			}
 			else if (r == 0)
