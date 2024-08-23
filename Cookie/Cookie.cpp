@@ -1,7 +1,7 @@
 #include "Cookie.hpp"
 
 /*
- *	@brief generate a id for new user.
+ *	@brief generate a id for working session.
  *	@param cookies The line about cookie in header.
  *	@param cookieName The name of cookie.
 */

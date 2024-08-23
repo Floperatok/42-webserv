@@ -61,6 +61,7 @@ void	Master::setupServers(void)
             Response::InternalServerError500(it->getSockfd(), *it, emptyVector);
 		}
 	}
+
 	_nbServers = _servers.size();
 }
 
@@ -275,9 +276,7 @@ void	Master::_manageClientsRequests(char **env, size_t *i)
     		std::string sessionID = getCookieValue(cookies, "session_id");
 			if (sessionID.length() != 6)
 				sessionID = generateRandomSessionID();
-			if (!sessionID.empty())
-        		Logger::debug("Session ID: " + sessionID);
-			else 
+			if (sessionID.empty())
         		Logger::debug("No session ID found in the request.");
 			/* cookies */
 			int	statusCode = Response::SendResponse(_servers, _fds[*i].fd, _requests[*i], env, sessionID);

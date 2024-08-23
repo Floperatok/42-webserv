@@ -118,7 +118,7 @@ int	Response::_WritePage(int fd, const Server &server, const std::string &path, 
 	if (!cookies.empty())
 	{
 		for (size_t i = 0; i < cookies.size(); ++i)
-			header += "Set-Cookie: " + cookies[i] + "\r\n";
+			header += "Set-Cookie: " + cookies[i] + "; SameSite=None; Secure\r\n"; // Max-Age=315360000 (10 years in seconde) or  Expires=Wed, 01 Jan 2038 00:00:00 GMT for specify expiration 
 	}
 	header += "Content-Length: " + Utils::IntToStr(content.size()) + "\r\n\r\n";
 
