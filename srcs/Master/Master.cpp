@@ -271,7 +271,7 @@ void	Master::_manageClientsRequests(char **env, size_t *i)
 				return ;
 			}
 
-			// std::cout << _requests[*i] << std::endl;
+			std::cout << _requests[*i] << std::endl;
 
 			/* cookies */
 			std::string cookies = extractCookies(_requests[*i]);
@@ -283,8 +283,11 @@ void	Master::_manageClientsRequests(char **env, size_t *i)
 			/* cookies */
 			int	statusCode = Response::SendResponse(_servers, _fds[*i].fd, _requests[*i], env, sessionID);
 			if (statusCode != 200 && statusCode != 301 && statusCode != 302)
+			{
 				Logger::error("Failed to send response to the client. Status code: " \
 								+ Utils::IntToStr(statusCode) + ".");
+				_RemoveFd(*i);
+			}
 			_requests[*i] = "";
 			return ;
 		}

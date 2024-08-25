@@ -118,7 +118,7 @@ int	Response::_WritePage(int fd, const Server &server, const std::string &path, 
 	if (!cookies.empty())
 	{
 		for (size_t i = 0; i < cookies.size(); ++i)
-			header += "Set-Cookie: " + cookies[i] + "; SameSite=None; Secure\r\n"; // Max-Age=315360000 (10 years in seconde) or  Expires=Wed, 01 Jan 2038 00:00:00 GMT for specify expiration 
+			header += "Set-Cookie: " + cookies[i] + "; SameSite=None; Max-Age=60; Secure\r\n"; // Max-Age=315360000 (10 years in seconde) or  Expires=Wed, 01 Jan 2038 00:00:00 GMT for specify expiration 
 	}
 	header += "Content-Length: " + Utils::IntToStr(content.size()) + "\r\n\r\n";
 
@@ -127,6 +127,7 @@ int	Response::_WritePage(int fd, const Server &server, const std::string &path, 
 		Logger::error("Failed to write header.");
 		if (recursed)
 			return (-1);
+		std::cout << "AAAAAAA" << std::endl;
 		return (InternalServerError500(fd, server, cookies));
 	}
 
@@ -136,6 +137,7 @@ int	Response::_WritePage(int fd, const Server &server, const std::string &path, 
 		Logger::error("Failed to write content.");
 		if (recursed)
 			return (-1);
+		std::cout << "BBBBBBBBBBB" << std::endl;
 		return (InternalServerError500(fd, server, cookies));
 	}
 	else if (static_cast<size_t>(bytesWritten) != content.size())
@@ -143,6 +145,7 @@ int	Response::_WritePage(int fd, const Server &server, const std::string &path, 
 		Logger::error("Incomplete content written.");
 		if (recursed)
 			return (-1);
+		std::cout << "CCCCCCCCCCC" << std::endl;
 		return InternalServerError500(fd, server, cookies);
 	}
 
@@ -181,7 +184,10 @@ int Response::_HandlePost(int fd, const Server &server, const std::string &reque
 		uploadPath = root + "cgi-bin/" + filename;
 
 	if (boundary.empty() || filename.empty() || fileData.empty())
+	{
+		std::cout << "DDDDDDDDDDD" << std::endl;
 		return (InternalServerError500(fd, server, cookies));
+	}
 	
     std::ofstream	outFile(uploadPath.c_str(), std::ios::binary);
     if (!outFile)

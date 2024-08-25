@@ -3,6 +3,8 @@ CC			=	c++
 CFLAGS		=	-Wall -Werror -Wextra -std=c++98 -g
 NAME		=	webserv
 
+SRCS_PATH		= srcs/
+
 SRCS			=	main.cpp \
 				Utils/Utils.cpp \
 				Logs/Logger.cpp \
@@ -20,14 +22,21 @@ OBJS		=	$(addprefix $(OBJ_PATH), $(SRCS:.cpp=.o))
 
 UPLOADED_FILES = www/uploads/* www/cgi-bin/*
 
-INCLUDES	=	-I Utils/ -I Logs/ -I Master/ -I Server/ -I Response/ -I Parser/ -I Cgi/
+INCLUDES	=	-I $(SRCS_PATH)Utils/ \
+				-I $(SRCS_PATH)Logs/ \
+				-I $(SRCS_PATH)Master/ \
+				-I $(SRCS_PATH)Server/ \
+				-I $(SRCS_PATH)Response/ \
+				-I $(SRCS_PATH)Parser/ \
+				-I $(SRCS_PATH)Cgi/ \
+				-I $(SRCS_PATH)Cookie/ \
 
 all:	$(NAME)
 
 $(NAME):	$(OBJS)
 	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $(OBJS)
 
-$(OBJ_PATH)%.o:	%.cpp
+$(OBJ_PATH)%.o:	$(SRCS_PATH)%.cpp
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
