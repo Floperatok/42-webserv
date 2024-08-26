@@ -14,8 +14,9 @@ SRCS			=	main.cpp \
 				Response/Response.cpp \
 				Parser/CheckConfig.cpp \
 				Parser/Parser.cpp \
-				Cgi/Cgi.cpp\
-				Cookie/Cookie.cpp
+				Cgi/Cgi.cpp \
+				Cookie/Cookie.cpp \
+				Client/Client.cpp
 
 OBJ_PATH	=	objs/
 OBJS		=	$(addprefix $(OBJ_PATH), $(SRCS:.cpp=.o))
@@ -30,6 +31,7 @@ INCLUDES	=	-I $(SRCS_PATH)Utils/ \
 				-I $(SRCS_PATH)Parser/ \
 				-I $(SRCS_PATH)Cgi/ \
 				-I $(SRCS_PATH)Cookie/ \
+				-I $(SRCS_PATH)Client/ \
 
 all:	$(NAME)
 

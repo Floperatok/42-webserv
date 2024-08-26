@@ -6,7 +6,10 @@
 #include "Response.hpp"
 #include "Logger.hpp"
 #include "Cgi.hpp"
-#include "../Cookie/Cookie.hpp"
+#include "Cookie.hpp"
+#include "Client.hpp"
+
+class Client;
 
 class Master
 {
@@ -14,21 +17,18 @@ private:
 	// Attributes
 	std::vector<Server>			_servers;
 	unsigned int				_nbServers;
-	unsigned int				_nfds;
 	struct pollfd				_fds[MAX_CLIENT];
-	std::map<int, std::string>	_requests;
+	std::map<unsigned int, Client>		_clients;
 
 	// Methods
 	void		_initFds(void);
-	void 		_storeFd(int fd, const Server &server, const short events);
-	int			_createClientSocket(Server &server);
-	int			_readSocket(const int sockfd, std::string &receivedData);
+	void		_storeFd(Client &client, const short events);
 	void		_checkServersConnections(void);
 	void		_manageClientsRequests(char **env, size_t *index);
 	void		_RemoveFd(unsigned int index);
 	bool		_isKeepAlive(const std::string &request);
 	// debug
-	void		_displayInfos(void) const;
+	void		_displayInfos(void);
 
 public:
 	// Constructors

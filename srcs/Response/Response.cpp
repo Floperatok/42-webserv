@@ -39,30 +39,29 @@ Response &Response::operator=(const Response &rhs)
  *	@param env The environnement to use for CGI Scripts.
  *	@return	The status code of the response sent.
 */
-int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string request, char **env, std::string sessionId)
+int	Response::SendResponse(Client &client, char **env, std::string sessionId)
 {
 	std::string					status = "200 OK";
-	std::string					line = request.substr(0, request.find('\n'));
+	std::string					line = client.request.substr(0, client.request.find('\n'));
 	std::vector<std::string>	req = Utils::SplitStr(line, " ");
 	std::string					method = req[0];
-	Server						server = _GetServer(servers, request);
-	std::string					root = server.getRoot();
-	std::string					path = _GetPath(server, req[1]);
-	Location					location = _GetLocation(server, path);
-	size_t						maxBodySize = server.getMaxBodySize();
+	std::string					root = client.server->getRoot();
+	std::string					path = _GetPath(*client.server, req[1]);
+	Location					location = _GetLocation(*client.server, path);
+	size_t						maxBodySize = client.server->getMaxBodySize();
 	std::vector<std::string>	cookies;
-	if (!_CheckBodySize(request, maxBodySize))
+	if (!_CheckBodySize(client.request, maxBodySize))
 	{
 		Logger::error("The request's body size exceeds the body size limit.");
-		return (ContentTooLarge413(fd, server, cookies));
+		return (ContentTooLarge413(client.sockfd, *client.server, cookies));
 	}
 
-	_CheckRedirection(server, location, path, status);
-	_ReplaceRootInLocation(server, location, path);
-	if (!_CheckAutoIndex(server, location, path, req[1]))
+	_CheckRedirection(*client.server, location, path, status);
+	_ReplaceRootInLocation(*client.server, location, path);
+	if (!_CheckAutoIndex(*client.server, location, path, req[1]))
 	{
 		Logger::error("Auto-Index is OFF and no index was found.");
-		return (Forbidden403(fd, server, cookies));
+		return (Forbidden403(client.sockfd, *client.server, cookies));
 	}
 
 	cookies.push_back("session_id=" + sessionId + "; Path=/; HttpOnly");
@@ -71,16 +70,16 @@ int	Response::SendResponse(std::vector<Server> &servers, int fd, std::string req
 	{
 		_GenerateCgiPage(root, req[1]);
 		if (req[1].find("/cgi-bin/cgi_script?script=") != std::string::npos)
-			return (_HandleCgi(fd, server, req[1], location, env, cookies));
-		return (_WritePage(fd, server, path, _GetContentType(request, path), status, cookies));
+			return (_HandleCgi(client.sockfd, *client.server, req[1], location, env, cookies));
+		return (_WritePage(client.sockfd, *client.server, path, _GetContentType(client.request, path), status, cookies));
 	}
-	else if (method == "POST" && _IsMethodAllowed(method, location) && _GetMethod(request) == "")
-		return (_HandlePost(fd, server, request, req[1], location, cookies));
-	else if (method == "POST" && _GetMethod(request) == "DELETE" && _IsMethodAllowed("DELETE", location))
-		return (_HandleDelete(fd, server, request, root, cookies));
+	else if (method == "POST" && _IsMethodAllowed(method, location) && _GetMethod(client.request) == "")
+		return (_HandlePost(client.sockfd, *client.server, client.request, req[1], location, cookies));
+	else if (method == "POST" && _GetMethod(client.request) == "DELETE" && _IsMethodAllowed("DELETE", location))
+		return (_HandleDelete(client.sockfd, *client.server, client.request, root, cookies));
 		
 	Logger::error("The request's method is not allowed.");
-	return (MethodNotAllowed405(fd, server, cookies));
+	return (MethodNotAllowed405(client.sockfd, *client.server, cookies));
 }
 
 
@@ -127,7 +126,6 @@ int	Response::_WritePage(int fd, const Server &server, const std::string &path, 
 		Logger::error("Failed to write header.");
 		if (recursed)
 			return (-1);
-		std::cout << "AAAAAAA" << std::endl;
 		return (InternalServerError500(fd, server, cookies));
 	}
 
@@ -137,7 +135,6 @@ int	Response::_WritePage(int fd, const Server &server, const std::string &path, 
 		Logger::error("Failed to write content.");
 		if (recursed)
 			return (-1);
-		std::cout << "BBBBBBBBBBB" << std::endl;
 		return (InternalServerError500(fd, server, cookies));
 	}
 	else if (static_cast<size_t>(bytesWritten) != content.size())
@@ -145,7 +142,6 @@ int	Response::_WritePage(int fd, const Server &server, const std::string &path, 
 		Logger::error("Incomplete content written.");
 		if (recursed)
 			return (-1);
-		std::cout << "CCCCCCCCCCC" << std::endl;
 		return InternalServerError500(fd, server, cookies);
 	}
 
@@ -185,7 +181,6 @@ int Response::_HandlePost(int fd, const Server &server, const std::string &reque
 
 	if (boundary.empty() || filename.empty() || fileData.empty())
 	{
-		std::cout << "DDDDDDDDDDD" << std::endl;
 		return (InternalServerError500(fd, server, cookies));
 	}
 	
@@ -754,29 +749,6 @@ std::string	Response::_GetExtension(const std::string &path)
 }
 
 /*
- *	@brief Gets the server from which request is done.
- *	@param servers	The vector's list of servers.
- *	@param request	The request.
- *	@return	The corresponding server.
-*/
-Server	Response::_GetServer(const std::vector<Server> &servers, const std::string &request)
-{
-	Server	server = servers[0];
-	int 	port = _GetPort(request);
-
-	for (size_t i = 0 ; i < servers.size() ; i++)
-	{
-		if (servers[i].getPort() == port)
-		{
-			server = servers[i];
-			break ;
-		}
-	}
-
-	return (server);
-}
-
-/*
  *	@brief Gets the port of the server from which request is done.
  *	@param request	The request.
  *	@return	The server's port.
@@ -992,7 +964,7 @@ int	Response::BadRequest400(int fd, const Server &server, const std::vector<std:
 	else
 		path = root + path;
 
-	if (_WritePage(fd, server, path, "text/html", "400 Bad Request", cookies,  true) == -1)
+	if (_WritePage(fd, server, path, "text/html", "400 Bad Request", cookies, true) == -1)
 		Logger::error("Failed to send 400 response.");
 
 	return (400);

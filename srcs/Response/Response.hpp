@@ -6,6 +6,7 @@
 #include "Parser.hpp"
 #include "Logger.hpp"
 #include "Cgi.hpp"
+#include "Client.hpp"
 
 #define	ERROR_CSS	"www/error_pages/error_pages.css"
 #define ERROR_400	"www/error_pages/400.html"
@@ -20,6 +21,8 @@
 #define ERROR_503	"www/error_pages/503.html"
 #define ERROR_504	"www/error_pages/504.html"
 
+class Client;
+
 class Response
 {
 	private:
@@ -29,7 +32,6 @@ class Response
 		Response &operator=(const Response &rhs);
 
 		// Send Response Methods
-		static Server		_GetServer(const std::vector<Server> &servers, const std::string &request);
 		static std::string	_GetPath(const Server &server, const std::string &subPath);
 		static int			_GetPort(const std::string &request);
 		static std::string	_GetContentType(const std::string &request, const std::string &path);
@@ -81,7 +83,7 @@ class Response
 		~Response(void);
 
 		// Methods
-		static int			SendResponse(std::vector<Server> &servers, int fd, std::string request, char **env, std::string sessionId);
+		static int			SendResponse(Client &client, char **env, std::string sessionId);
 
 		// Error pages Methods
 		static int			BadRequest400(int fd, const Server &server, const std::vector<std::string> &cookies);
