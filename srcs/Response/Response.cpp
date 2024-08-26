@@ -41,9 +41,12 @@ Response &Response::operator=(const Response &rhs)
 */
 int	Response::SendResponse(Client &client, char **env, std::string sessionId)
 {
+	std::vector<std::string>	emptyCookies;
 	std::string					status = "200 OK";
 	std::string					line = client.request.substr(0, client.request.find('\n'));
 	std::vector<std::string>	req = Utils::SplitStr(line, " ");
+	if (req.size() != 3)
+		return (BadRequest400(client.sockfd, *client.server, emptyCookies));
 	std::string					method = req[0];
 	std::string					root = client.server->getRoot();
 	std::string					path = _GetPath(*client.server, req[1]);
@@ -169,6 +172,8 @@ int Response::_HandlePost(int fd, const Server &server, const std::string &reque
 	std::string		root = server.getRoot();
     std::string		body = request.substr(request.find("\r\n\r\n") + 4);
     std::string		boundary = _GetBoundary(request);
+	if (boundary.empty())
+		return (InternalServerError500(fd, server, cookies));
     std::string		filename = _ExtractFilename(body);
     std::string		fileData = _ExtractFileData(body, boundary);
 
@@ -179,7 +184,7 @@ int Response::_HandlePost(int fd, const Server &server, const std::string &reque
 	if (path == "/cgi-bin")
 		uploadPath = root + "cgi-bin/" + filename;
 
-	if (boundary.empty() || filename.empty() || fileData.empty())
+	if (filename.empty() || fileData.empty())
 	{
 		return (InternalServerError500(fd, server, cookies));
 	}

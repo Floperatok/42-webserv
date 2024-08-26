@@ -169,7 +169,7 @@ void	Master::_checkServersConnections(void)
  *	@param env The environnement to use for CGI Scripts.
  *	@param i A pointer to the client's index.
 */
-void	Master::_manageClientsRequests(char **env, size_t *i)
+void	Master::	_manageClientsRequests(char **env, size_t *i)
 {
 	if (*i >= MAX_CLIENT)
 		*i = _nbServers;
@@ -212,11 +212,11 @@ void	Master::_manageClientsRequests(char **env, size_t *i)
 
 			/* cookies */
 			std::string cookies = extractCookies(_clients[*i].request);
-    		std::string sessionID = getCookieValue(cookies, "session_id");
+			std::string sessionID = getCookieValue(cookies, "session_id");
 			if (sessionID.length() != 6)
 				sessionID = generateRandomSessionID();
 			if (sessionID.empty())
-        		Logger::debug("No session ID found in the request.");
+				Logger::debug("No session ID found in the request.");
 
 			int	statusCode = Response::SendResponse(_clients[*i], env, sessionID);
 			if (statusCode != 200 && statusCode != 301 && statusCode != 302)

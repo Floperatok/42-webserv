@@ -23,6 +23,7 @@ public:
 	~Client(void);
 
 	int	readClientRequest(void);
+	int	manageResponse(char **env);
 };
 
 #endif
