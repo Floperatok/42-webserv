@@ -25,9 +25,9 @@ int	main(int argc, char **argv, char **env)
 		Parser::ParseConfigFile(configFilePath, master, env);
 
 		// Setup and run servers
-		master.setupServers();
+		if (!master.setupServers())
+			return (EXIT_FAILURE);
 		master.runServers(env);
-
 	}
 	catch (const std::exception &e)
 	{

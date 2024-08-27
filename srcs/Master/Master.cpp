@@ -46,7 +46,7 @@ void	Master::setServers(std::vector<Server> servers) {	_servers = servers;	}
 /*
  *	@brief Setups all serveurs by calling their setup function.
 */
-void	Master::setupServers(void)
+bool	Master::setupServers(void)
 {
 	std::vector<Server>::iterator	it = _servers.begin();
 	std::vector<Server>::iterator	ite = _servers.end();
@@ -58,11 +58,12 @@ void	Master::setupServers(void)
 		if (!it->setup())
 		{
 			Logger::error("Server setup failed.");
-            Response::InternalServerError500(it->getSockfd(), *it, emptyVector);
+			return (false);
 		}
 	}
 
 	_nbServers = _servers.size();
+	return (true);
 }
 
 /*
@@ -175,7 +176,6 @@ void	Master::	_manageClientsRequests(char **env, size_t *i)
 		*i = _nbServers;
 	if (*i < _nbServers)
 		*i = _nbServers;
-
 	for (; *i < MAX_CLIENT ; (*i)++)
 	{
 		if (_fds[*i].revents == 0)
@@ -273,7 +273,7 @@ void	Master::_displayInfos(void)
 	{
 		if (_fds[i].fd != -1)
 		{
-			std::cout << "\tfds[" << i << "].fd = " << _fds[i].fd << " (client); client map[" << i << "].sockfd = " << _clients[i].sockfd << std::endl;
+			std::cout << "\tfds[" << i << "].fd = " << _fds[i].fd << " (client)" << std::endl;
 			nbClients++;
 		}
 	}

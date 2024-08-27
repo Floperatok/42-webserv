@@ -277,7 +277,7 @@ bool	Server::setup(void)
 	_setupServAddr();
 	
 	int option_value = 1;
-    if (setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, 
+    if (setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR, 
 		&option_value, sizeof(int)) < 0)
 	{
 		Logger::error("Failed to set socket options.");

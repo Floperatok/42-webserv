@@ -40,7 +40,7 @@ public:
 	Master &operator=(const Master &other);
 
 	// Methods
-	void	setupServers(void);
+	bool	setupServers(void);
 	void	runServers(char **env);
 
 	// Getters and setters
