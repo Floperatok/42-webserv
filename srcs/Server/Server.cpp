@@ -127,7 +127,7 @@ void	Server::_setupServAddr(void)
 {
 	std::memset(&_servaddr, 0, sizeof(_servaddr));
 	_servaddr.sin_family = AF_INET;
-	_servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_servaddr.sin_addr.s_addr = _host;
 	_servaddr.sin_port = htons(_port);
 }
 
