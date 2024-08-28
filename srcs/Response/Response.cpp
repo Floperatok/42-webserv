@@ -78,7 +78,8 @@ int	Response::SendResponse(Client &client, char **env, std::string sessionId)
 	}
 	else if (method == "POST" && _IsMethodAllowed(method, location) && _GetMethod(client.request) == "")
 		return (_HandlePost(client.sockfd, *client.server, client.request, req[1], location, cookies));
-	else if (method == "POST" && _GetMethod(client.request) == "DELETE" && _IsMethodAllowed("DELETE", location))
+	else if ((method == "POST" && _GetMethod(client.request) == "DELETE" && _IsMethodAllowed("DELETE", location))
+			|| (method == "DELETE" && _IsMethodAllowed("DELETE", location)))
 		return (_HandleDelete(client.sockfd, *client.server, client.request, root, cookies));
 		
 	Logger::error("The request's method is not allowed.");
@@ -369,7 +370,7 @@ int Response::_HandleDelete(int fd, const Server &server, const std::string &req
 
     if (std::remove(path.c_str()))
     {
-        Logger::error(("Failed to delete file: " + path).c_str());
+        Logger::error("Failed to delete file: '" + path + "'");
         return (InternalServerError500(fd, server, cookies));
     }
 
@@ -388,14 +389,28 @@ int Response::_HandleDelete(int fd, const Server &server, const std::string &req
 std::string	Response::_GetFilePathToDelete(const std::string &request)
 {
 	std::string	pathToDelete;
-	size_t		start = request.find("_method=DELETE&filePath=") + 24;
+	size_t		start = request.find("_method=DELETE&filePath=");
+	size_t		end;
 
 	if (start == std::string::npos)
-		return ("");
+	{
+		start = request.find("DELETE");
+		if (start == std::string::npos)
+			return ("");
+		start += 7;
+		end = request.find(" ", start);
+	}
+	else
+	{
+		start += 24;
+		end = request.find("\r\n", start);
+	}
 
-	size_t		end = request.find("\r\n");
 
 	pathToDelete = request.substr(start, end - start);
+
+	if (pathToDelete[0] == '/')
+		pathToDelete.erase(0, 1);
 
 	return (pathToDelete);
 }
